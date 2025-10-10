@@ -3,12 +3,14 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>DataMatrix Validator (iPhone Safari)</title>
 <style>
   body{font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial; margin:0; padding:0; background:#f2f6fb; color:#222}
   header{background:#1565c0;color:#fff;padding:12px 14px;font-size:18px;font-weight:600}
   .container{padding:12px}
-  .video-wrap{background:#000;border-radius:8px;overflow:hidden;max-width:720px}
+  .video-wrap{background:#000;border-radius:8px;overflow:hidden;max-width:720px;position:relative}
   video{width:100%;height:auto;display:block}
   .controls{margin-top:10px; display:flex; gap:8px; flex-wrap:wrap}
   button{background:#0b79d0;color:#fff;border:none;padding:10px 12px;border-radius:8px;font-weight:600}
@@ -23,6 +25,8 @@
   .hint{font-size:13px;color:#666;margin-top:8px}
   input[type=file]{display:inline-block}
   .small{font-size:13px;color:#444}
+  .overlay{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;justify-content:center;align-items:center;pointer-events:none}
+  .scan-box{width:70%;height:70%;border:2px solid #fff;border-radius:8px;box-shadow:0 0 0 1000px rgba(0,0,0,0.5)}
 </style>
 <!-- ZXing library (UMD build) -->
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.6/umd/index.min.js"></script>
@@ -31,7 +35,10 @@
 <header>DataMatrix 검증기 (iPhone Safari 사용 가능)</header>
 <div class="container">
   <div class="video-wrap" id="videoWrap">
-    <video id="video" playsinline></video>
+    <video id="video" playsinline autoplay muted></video>
+    <div class="overlay">
+      <div class="scan-box"></div>
+    </div>
   </div>
 
   <div class="controls">
@@ -95,26 +102,18 @@
   // parser & validator
   function normalizeControls(s){
     if(!s) return '';
-    // In many decoders, control chars may appear as literal characters '' (0x1D) and '' (0x1E)
-    // Replace textual mentions like <RS>, RS, <GS> etc with actual chars, but be conservative.
     s = s.replace(/\\r\\n/g,'').replace(/\\r/g,'').replace(/\\n/g,'');
-    // Convert common visible tokens to control chars for parsing
-    s = s.replace(/\\[\\>\\)]/g,'[)>'); // safety
+    s = s.replace(/\\[\\>\\)]/g,'[)>');
     s = s.replace(/<RS>|\\bRS\\b/gi, '\x1E');
     s = s.replace(/<GS>|\\bGS\\b/gi, '\x1D');
     s = s.replace(/<EOT>|\\bEOT\\b/gi, '\x04');
-    // Replace visible glyphs often copied from scanners
     s = s.replace(/[\u001D\u001E\u0004]/g, function(ch){ return ch; });
-    // If someone used hashtags for end, leave '#'
     return s.trim();
   }
 
   function splitTokens(s){
-    // tokens separated by GS (0x1D)
     const GS = '\x1D';
-    // If string doesn't contain GS but contains visible 'GS' words, split heuristically
     if(s.indexOf(GS) >= 0) return s.split(GS).map(x => x.trim());
-    // try splitting by literal control-like characters
     const alt = s.split(/[\u001D\u001E#\|]/).map(x=>x.trim()).filter(Boolean);
     return alt;
   }
@@ -135,7 +134,6 @@
       header_ok = true;
       header_val = '[)>' + '\\u001E' + '06';
     } else {
-      // try variant like ")]> RS06" or visible tokens
       if(/^\[>\)|^\[\)\>/.test(raw) || raw.startsWith('[)>')) {
         header_ok = raw.includes('06');
         header_val = raw.slice(0, Math.min(6, raw.length));
@@ -153,7 +151,6 @@
     });
 
     // heuristics to find core fields:
-    // find token that starts with 'P' and contains digits -> part
     let vendor = '', part = '', seq = '', date='', m4='', a_or='',
         trace='', firstFlag='', area='', trailer='';
 
@@ -165,7 +162,6 @@
     setCell('trailRes', !!trailer && trailer!=='missing', trailer);
 
     // find first token that looks like header and then next tokens are meaningful
-    // Remove header portion if present
     let work = raw;
     if(header_ok) {
       const idx = work.indexOf('06');
@@ -174,17 +170,15 @@
     // split remaining by GS or spaces
     const parts = splitTokens(work).filter(x=>x.length>0);
     // Attempt typical positions from examples:
-    // [vendor] [P...part...] [S...] [T...trace...] [MN or CS...] [CompanyName]
     if(parts.length>0){
       // try vendor
       vendor = parts[0].replace(/^[\x1D\x1E]+/,'');
-      // If vendor has leading V (e.g., VKM54), remove leading V if next part seems KM54
       if(/^V[A-Z0-9]{3,4}$/i.test(vendor) && vendor.length>3) vendor = vendor.slice(1);
     }
     // find part token (first token starting with P)
     for(let t of parts){
       if(/^P[0-9A-Z]+/i.test(t)){
-        part = t.replace(/^P/,'P'); // keep as-is
+        part = t.replace(/^P/,'P');
         break;
       }
     }
@@ -209,23 +203,18 @@
         date = m[1];
         m4 = m[2];
         a_or = m[3];
-        // if trace number starts with letters (DWA...) allow that too
         trace = m[4];
       } else {
-        // fallback parse: T + 6 digits + rest
         const m2 = trace.match(/^T(\d{6})(.+)$/i);
         if(m2){
           date = m2[1];
           const rest = m2[2];
-          // attempt to split rest into 4M (4chars), A/@ (next single char), then remainder trace
           const mm = rest.match(/^([A-Z0-9]{3,5})([A@])([A-Z0-9]+)$/i);
           if(mm){ m4 = mm[1]; a_or = mm[2]; trace = mm[3]; }
           else {
-            // if starts with letters then digits, try to find digits tail
             const mm2 = rest.match(/^([A-Z0-9]{3,6})([0-9]{6,})$/i);
             if(mm2){ m4 = mm2[1]; trace = mm2[2]; }
             else {
-              // last resort: keep rest as trace
               trace = rest;
             }
           }
@@ -305,7 +294,6 @@
 
   function printableRepresentation(s){
     if(!s) return '';
-    // show visible markers for RS/GS/EOT
     return s.replace(/\x1E/g,'<RS>').replace(/\x1D/g,'<GS>').replace(/\x04/g,'<EOT>');
   }
 
@@ -313,6 +301,7 @@
   const codeReader = new ZXing.BrowserMultiFormatReader();
   let stream = null;
   let decoding = false;
+  let decodeInterval = null;
 
   startBtn.addEventListener('click', async ()=>{
     if(decoding) return;
@@ -320,38 +309,42 @@
       decoding = true;
       // request camera (prefer environment)
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } }, audio:false
+        video: { 
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }, 
+        audio:false
       });
       video.srcObject = stream;
       await video.play();
 
-      // continuously try decode every 600ms
-      decodeLoop();
+      // iOS 호환성을 위해 지속적인 디코딩 루프 사용
+      decodeInterval = setInterval(async () => {
+        if (!decoding) return;
+        try {
+          const result = await codeReader.decodeOnceFromVideoElement(video);
+          if(result && result.text){
+            parseAndValidate(result.text);
+            // 성공적으로 디코딩 후 일시 중지
+            await new Promise(r=>setTimeout(r, 1500));
+          }
+        } catch(e) {
+          // 디코딩 실패는 무시
+        }
+      }, 500);
     }catch(err){
       alert('카메라 접근 실패: ' + err.message + '\n(파일 업로드를 사용해 보세요.)');
       decoding = false;
     }
   });
 
-  async function decodeLoop(){
-    if(!decoding) return;
-    try{
-      const result = await codeReader.decodeOnceFromVideoElement(video);
-      if(result && result.text){
-        // stop after successful decode
-        // show raw and parse
-        parseAndValidate(result.text);
-        // keep camera running but pause decoding for 2s
-        await new Promise(r=>setTimeout(r, 1200));
-      }
-    }catch(e){
-      // ignore decode errors (no code in frame)
-    }
-    if(decoding) setTimeout(decodeLoop, 400);
-  }
-
   stopBtn.addEventListener('click', ()=>{
     decoding = false;
+    if(decodeInterval) {
+      clearInterval(decodeInterval);
+      decodeInterval = null;
+    }
     if(stream){
       stream.getTracks().forEach(t=>t.stop());
       stream = null;
@@ -367,27 +360,12 @@
     reader.onload = function(e){
       const img = new Image();
       img.onload = async function(){
-        // use ZXing to decode from image
         try{
-          const luminanceSource = await ZXing.HTMLCanvasElementLuminanceSource.fromImage(img);
-          const binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
-          const hints = new Map();
-          // Allow DataMatrix + other 2D formats
-          const result = codeReader.decode(binaryBitmap, hints);
-          if(result && result.text){
-            parseAndValidate(result.text);
-          } else {
-            // fallback: try to read text via manual OCR? (not implemented)
-            alert('이미지에서 코드를 디코딩하지 못했습니다.');
-          }
-        }catch(err){
-          // fallback simpler approach: try decodeOnceFromVideoDevice with data URL not available; instead try using decodeFromImageElement
-          try{
-            const res = await codeReader.decodeFromImage(img);
-            if(res && res.text) parseAndValidate(res.text);
-          }catch(e2){
-            alert('이미지 디코딩 실패: ' + e2.message);
-          }
+          const result = await codeReader.decodeFromImage(img);
+          if(result && result.text) parseAndValidate(result.text);
+          else alert('이미지에서 코드를 디코딩하지 못했습니다.');
+        }catch(e){
+          alert('이미지 디코딩 실패: ' + e.message);
         }
       };
       img.src = e.target.result;
