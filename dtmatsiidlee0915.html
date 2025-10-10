@@ -7,45 +7,183 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>DataMatrix 검증기</title>
 <style>
-  body{font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial; margin:0; padding:0; background:#f2f6fb; color:#222}
-  header{background:#1565c0;color:#fff;padding:12px 14px;font-size:18px;font-weight:600}
-  .container{padding:12px}
-  .video-wrap{background:#000;border-radius:8px;overflow:hidden;max-width:720px;position:relative;min-height:300px}
-  video{width:100%;height:auto;display:block}
-  .controls{margin-top:10px; display:flex; gap:8px; flex-wrap:wrap}
-  button{background:#0b79d0;color:#fff;border:none;padding:10px 12px;border-radius:8px;font-weight:600;cursor:pointer}
-  button:disabled{background:#ccc;cursor:not-allowed}
-  button.secondary{background:#ddd;color:#333}
-  .result{margin-top:14px;background:#fff;padding:10px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
-  pre.raw{white-space:pre-wrap;background:#111;color:#bde; padding:10px;border-radius:6px;overflow:auto}
-  table{width:100%;border-collapse:collapse;margin-top:8px}
-  th,td{padding:8px;border:1px solid #e6eef8;text-align:left}
-  th{background:#f4f9ff}
-  .ok{color:#0b7b0b;font-weight:700}
-  .ng{color:#c62828;font-weight:700}
-  .hint{font-size:13px;color:#666;margin-top:8px}
-  input[type=file]{display:inline-block}
-  .small{font-size:13px;color:#444}
-  .scan-overlay{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;justify-content:center;align-items:center;pointer-events:none}
-  .scan-frame{width:70%;height:70%;border:2px solid #00ff00;border-radius:8px;box-shadow:0 0 0 1000px rgba(0,0,0,0.5)}
-  .status{text-align:center;color:#fff;margin-top:10px;font-weight:bold}
-  
-  /* 탭 스타일 */
-  .tabs-container {margin-top: 16px;}
-  .tabs-header {display: flex; border-bottom: 1px solid #e0e0e0; overflow-x: auto;}
-  .tab-button {padding: 10px 16px; background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap;}
-  .tab-button.active {border-bottom-color: #1565c0; color: #1565c0; font-weight: 600;}
-  .tab-content {display: none; padding: 16px 0;}
-  .tab-content.active {display: block;}
-  .token-info {margin-bottom: 12px;}
-  .token-field {margin-bottom: 8px; display: flex;}
-  .token-label {font-weight: 600; min-width: 120px;}
-  .token-value {flex: 1; word-break: break-all;}
+  * {
+    -webkit-tap-highlight-color: rgba(255, 255, 255, 0) !important;
+    -webkit-focus-ring-color: rgba(255, 255, 255, 0) !important;
+    outline: none !important;
+  }
+  body {
+    -webkit-touch-callout: none;
+    -webkit-text-size-adjust: none;
+    -webkit-user-select: none;
+    font-size:12pt;
+    height:100%;
+    margin:4px 4px 98px 4px;
+    padding:0px;
+    background:#f2f6fb;
+    color:#222;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial;
+  }
+  header {
+    background:#1565c0;
+    color:#fff;
+    padding:12px 14px;
+    font-size:18px;
+    font-weight:600;
+  }
+  .container {
+    padding:12px;
+  }
+  .video-wrap {
+    background:#000;
+    border-radius:8px;
+    overflow:hidden;
+    max-width:720px;
+    position:relative;
+    min-height:300px;
+  }
+  video {
+    width:100%;
+    height:auto;
+    display:block;
+  }
+  .scan-overlay {
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+    bottom:0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    pointer-events:none;
+  }
+  .scan-frame {
+    width:70%;
+    height:70%;
+    border:2px solid #00ff00;
+    border-radius:8px;
+    box-shadow:0 0 0 1000px rgba(0,0,0,0.5);
+  }
+  .status {
+    text-align:center;
+    color:#fff;
+    margin-top:10px;
+    font-weight:bold;
+  }
+  .bottomArea {
+    position:fixed;
+    bottom:0px;
+    left:0px;
+    right:0px;
+    padding:12px 0px;
+    text-align:center;
+    background-image:linear-gradient(to bottom, #f5f5f5, #e5e5e5);
+    border-top:solid 4px #24A7D3;
+  }
+  .bottomArea button {
+    width:48%;
+    height:60px;
+    margin:0 1%;
+  }
+  button {
+    -moz-box-shadow:inset 0px 1px 0px 0px #54a3f7;
+    -webkit-box-shadow:inset 0px 1px 0px 0px #54a3f7;
+    box-shadow:inset 0px 1px 0px 0px #54a3f7;
+    background:linear-gradient(to bottom, #007dc1 5%, #0061a7 100%);
+    filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#007dc1', endColorstr='#0061a7',GradientType=0);
+    background-color:#007dc1;
+    border-radius:6px;
+    border:1px solid #124d77;
+    display:inline-block;
+    cursor:pointer;
+    color:#ffffff;
+    padding:0px;
+    font-size:14pt;
+    font-weight:bold;
+    text-shadow:0px 1px 0px #154682;
+  }
+  button:active {
+    transform:scale(.95);
+  }
+  button:disabled {
+    background:#ccc;
+    cursor:not-allowed;
+  }
+  .title {
+    margin: 0.2em 0 0 0;
+    font-weight: bold;
+    position: relative;
+    text-shadow: 0 -1px rgba(0,0,0,0.6);
+    font-size: 14pt;
+    line-height: 32px;
+    background: #115f97;
+    padding: 5px 15px;
+    color: white;
+    border-radius: 10px 10px 0 0;
+    box-shadow: inset 0 0 5px rgba(53,86,129, 0.5);
+  }
+  .memo {
+    font-size:12pt;
+    font-weight:bold;
+    border:solid 1px silver;
+    background-color:#eee;
+    padding:10px;
+    word-break:normal;
+    word-wrap:break-word;
+    white-space:pre-line;
+    overflow:hidden;
+    min-height:40px;
+    margin-bottom:10px;
+    border-radius: 0 0 10px 10px;
+  }
+  table {
+    width:100%;
+    border-collapse:collapse;
+  }
+  th {
+    background-color:#eee;
+    padding:8px;
+  }
+  table, td, th {
+    border:solid 1px silver;
+  }
+  td {
+    word-break:break-all;
+    white-space:pre-line;
+  }
+  .ct {
+    text-align:center;
+  }
+  .gs{color:red;font-weight:bold;}
+  .rs{color:green;font-weight:bold;}
+  .eot{color:blue;font-weight:bold;}
+  .ok{color:#0b7b0b;font-weight:700;}
+  .ng{color:#c62828;font-weight:700;}
+  .gray {color:silver;font-weight:bold;}
+  .hint {
+    font-size:13px;
+    color:#666;
+    margin-top:8px;
+  }
+  input[type=file] {
+    display:none;
+  }
+  .file-label {
+    background:#ddd;
+    color:#333;
+    border:none;
+    padding:10px 12px;
+    border-radius:8px;
+    font-weight:600;
+    cursor:pointer;
+    display:inline-block;
+  }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js"></script>
 </head>
 <body>
-<header>DataMatrix 검증기 (iPhone 호환)</header>
+<header>DataMatrix 검증기</header>
 <div class="container">
   <div class="video-wrap" id="videoWrap">
     <video id="video" playsinline></video>
@@ -55,55 +193,103 @@
     </div>
   </div>
 
-  <div class="controls">
+  <div class="bottomArea">
     <button id="startBtn">카메라 시작</button>
-    <button id="stopBtn" class="secondary" disabled>카메라 중지</button>
-    <label class="secondary small" style="padding:8px;border-radius:8px;cursor:pointer">
+    <button id="stopBtn" disabled>카메라 중지</button>
+    <label class="file-label">
       이미지 업로드
-      <input id="fileInput" type="file" accept="image/*" style="display:none" />
+      <input id="fileInput" type="file" accept="image/*" />
     </label>
-    <button id="clearBtn" class="secondary">초기화</button>
   </div>
 
   <div class="result" id="resultBox">
-    <div><strong>디코드 원문:</strong></div>
-    <pre class="raw" id="rawText">(스캔 또는 업로드 후 결과가 여기에 표시됩니다)</pre>
+    <div class="title">바코드내용</div>
+    <div class="memo" id="rawText">(스캔 또는 업로드 후 결과가 여기에 표시됩니다)</div>
 
-    <div class="hint">참고: ANSI / ISO 15434 스타일의 구분자( RS=ASCII30, GS=ASCII29, EOT=ASCII4 )와 일반문자 '#', 'EOT' 등 여러 표현을 허용하여 인식합니다.</div>
-
-    <!-- 요약 테이블 -->
-    <table id="tableParsed">
-      <thead><tr><th>항목</th><th>결과</th><th>값</th></tr></thead>
-      <tbody>
-        <tr><td>Header</td><td id="hdrRes"></td><td id="hdrVal"></td></tr>
-        <tr><td>업체코드</td><td id="vendorRes"></td><td id="vendorVal"></td></tr>
-        <tr><td>부품번호</td><td id="partRes"></td><td id="partVal"></td></tr>
-        <tr><td>서열/서브코드</td><td id="seqRes"></td><td id="seqVal"></td></tr>
-        <tr><td>생산일자 (yymmdd)</td><td id="dateRes"></td><td id="dateVal"></td></tr>
-        <tr><td>부품4M</td><td id="m4Res"></td><td id="m4Val"></td></tr>
-        <tr><td>A or @</td><td id="aRes"></td><td id="aVal"></td></tr>
-        <tr><td>추적번호 (7자리 이상)</td><td id="traceRes"></td><td id="traceVal"></td></tr>
-        <tr><td>초도품구분</td><td id="firstRes"></td><td id="firstVal"></td></tr>
-        <tr><td>업체영역</td><td id="areaRes"></td><td id="areaVal"></td></tr>
-        <tr><td>Trailer</td><td id="trailRes"></td><td id="trailVal"></td></tr>
-      </tbody>
+    <div class="title">H/KMC부품 2D 바코드 표준</div>
+    <table>
+      <tr>
+        <th colspan=2>구분</th>
+        <th style="width:40px;">결과</th>
+        <th>Data</th>
+      </tr>
+      <tr>
+        <th colspan=2>Header</th>
+        <td class="ct" id="result00"></td>
+        <td id="data00"></td>
+      </tr>
+      <tr>
+        <th rowspan=4 style="width:40px;">사양<br>정보</th>
+        <th style="width:80px;">업체코드</th>
+        <td class="ct" id="result10"></td>
+        <td id="data10"></td>
+      </tr>
+      <tr>
+        <th>부품번호</th>
+        <td class="ct" id="result11"></td>
+        <td id="data11"></td>
+      </tr>
+      <tr>
+        <th>서열코드</th>
+        <td class="ct" id="result12"></td>
+        <td id="data12"></td>
+      </tr>
+      <tr id="tr13">
+        <th>EO번호</th>
+        <td class="ct" id="result13"></td>
+        <td id="data13"></td>
+      </tr>
+      <tr>
+        <th rowspan=4>추적<br>정보</th>
+        <th>생산일자</th>
+        <td class="ct" id="result20"></td>
+        <td id="data20"></td>
+      </tr>
+      <tr>
+        <th>부품4M</th>
+        <td class="ct" id="result21"></td>
+        <td id="data21"></td>
+      </tr>
+      <tr>
+        <th>A or @</th>
+        <td class="ct" id="result22"></td>
+        <td id="data22"></td>
+      </tr>
+      <tr>
+        <th>추적번호(7~)</th>
+        <td class="ct" id="result23"></td>
+        <td id="data23"></td>
+      </tr>
+      <tr id="tr30">
+        <th rowspan=2>부가<br>정보</th>
+        <th>특이정보</th>
+        <td class="ct" id="result30"></td>
+        <td id="data30"></td>
+      </tr>
+      <tr id="tr31">
+        <th>초도품구분</th>
+        <td class="ct" id="result31"></td>
+        <td id="data31"></td>
+      </tr>
+      <tr id="tr40">
+        <th>기타</th>
+        <th>업체영역</th>
+        <td class="ct" id="result40"></td>
+        <td id="data40"></td>
+      </tr>
+      <tr>
+        <th colspan=2>Trailer</th>
+        <td class="ct" id="result50"></td>
+        <td id="data50"></td>
+      </tr>
     </table>
 
-    <!-- 토큰 탭 섹션 -->
-    <div class="tabs-container">
-      <div><strong>토큰 상세 분석:</strong></div>
-      <div class="tabs-header" id="tabsHeader">
-        <!-- 탭 버튼들이 동적으로 추가될 곳 -->
-      </div>
-      <div class="tab-contents" id="tabContents">
-        <!-- 탭 내용들이 동적으로 추가될 곳 -->
-      </div>
-    </div>
+    <div class="hint">참고: ANSI / ISO 15434 스타일의 구분자( RS=ASCII30, GS=ASCII29, EOT=ASCII4 )와 일반문자 '#', 'EOT' 등 여러 표현을 허용하여 인식합니다.</div>
   </div>
 </div>
 
 <script>
-// UPDATED BASE CODE - 토큰 탭 기능 추가
+// DataMatrix 검증기 - 최종 버전
 (function(){
   const video = document.getElementById('video');
   const startBtn = document.getElementById('startBtn');
@@ -111,161 +297,39 @@
   const fileInput = document.getElementById('fileInput');
   const rawText = document.getElementById('rawText');
   const statusEl = document.getElementById('status');
-  const tabsHeader = document.getElementById('tabsHeader');
-  const tabContents = document.getElementById('tabContents');
   
   const codeReader = new ZXing.BrowserMultiFormatReader();
   let isScanning = false;
   let currentDeviceId = null;
 
-  const setCell = (id, ok, val) => {
-    const el = document.getElementById(id);
-    if(ok === null) { 
-      el.innerHTML=''; 
-      return; 
-    }
-    el.innerHTML = (ok ? '<span class="ok">OK</span>' : '<span class="ng">NG</span>');
-    const valElId = id.replace('Res','Val');
-    document.getElementById(valElId).innerText = val ?? '';
-  };
-
+  // 상태 업데이트
   function updateStatus(message) {
     statusEl.textContent = message;
   }
 
-  // 탭 전환 함수
-  function switchTab(tabIndex) {
-    // 모든 탭 버튼 비활성화
-    const tabButtons = tabsHeader.querySelectorAll('.tab-button');
-    tabButtons.forEach(button => button.classList.remove('active'));
+  // 결과 표시 업데이트
+  function setResult(id, ok, val) {
+    const resultEl = document.getElementById('result' + id);
+    const dataEl = document.getElementById('data' + id);
     
-    // 모든 탭 내용 숨기기
-    const tabContentElements = tabContents.querySelectorAll('.tab-content');
-    tabContentElements.forEach(content => content.classList.remove('active'));
-    
-    // 선택한 탭 활성화
-    tabButtons[tabIndex].classList.add('active');
-    tabContentElements[tabIndex].classList.add('active');
-  }
-
-  // 토큰 탭 생성 함수
-  function createTokenTabs(tokens) {
-    // 기존 탭 내용 초기화
-    tabsHeader.innerHTML = '';
-    tabContents.innerHTML = '';
-    
-    if (!tokens || tokens.length === 0) {
+    if (ok === null) {
+      resultEl.innerHTML = '';
+      dataEl.textContent = '';
       return;
     }
     
-    // 각 토큰에 대한 탭 생성
-    tokens.forEach((token, index) => {
-      // 탭 버튼 생성
-      const tabButton = document.createElement('button');
-      tabButton.className = `tab-button ${index === 0 ? 'active' : ''}`;
-      tabButton.textContent = `토큰 ${index + 1}`;
-      tabButton.addEventListener('click', () => switchTab(index));
-      tabsHeader.appendChild(tabButton);
-      
-      // 탭 내용 생성
-      const tabContent = document.createElement('div');
-      tabContent.className = `tab-content ${index === 0 ? 'active' : ''}`;
-      tabContent.id = `token-${index}`;
-      
-      // 토큰 정보 추가
-      const tokenInfo = document.createElement('div');
-      tokenInfo.className = 'token-info';
-      
-      // 토큰 길이
-      const lengthField = document.createElement('div');
-      lengthField.className = 'token-field';
-      lengthField.innerHTML = `<span class="token-label">길이:</span> <span class="token-value">${token.length} 문자</span>`;
-      tokenInfo.appendChild(lengthField);
-      
-      // 토큰 내용
-      const contentField = document.createElement('div');
-      contentField.className = 'token-field';
-      contentField.innerHTML = `<span class="token-label">내용:</span> <span class="token-value">${escapeHtml(token)}</span>`;
-      tokenInfo.appendChild(contentField);
-      
-      // 토큰 유형 분석
-      const typeField = document.createElement('div');
-      typeField.className = 'token-field';
-      const tokenType = analyzeTokenType(token, index);
-      typeField.innerHTML = `<span class="token-label">유형:</span> <span class="token-value">${tokenType}</span>`;
-      tokenInfo.appendChild(typeField);
-      
-      // 토큰 검증 결과
-      const validationField = document.createElement('div');
-      validationField.className = 'token-field';
-      const validationResult = validateToken(token, index);
-      validationField.innerHTML = `<span class="token-label">검증:</span> <span class="token-value ${validationResult.isValid ? 'ok' : 'ng'}">${validationResult.message}</span>`;
-      tokenInfo.appendChild(validationField);
-      
-      tabContent.appendChild(tokenInfo);
-      tabContents.appendChild(tabContent);
+    resultEl.innerHTML = ok ? '<span class="ok">OK</span>' : '<span class="ng">NG</span>';
+    dataEl.textContent = val || '';
+  }
+
+  // 모든 결과 초기화
+  function clearResults() {
+    ['00','10','11','12','13','20','21','22','23','30','31','40','50'].forEach(id => {
+      setResult(id, null, '');
     });
   }
 
-  // 토큰 유형 분석 함수
-  function analyzeTokenType(token, index) {
-    if (index === 0 && token.startsWith('[)>')) {
-      return '헤더 (Header)';
-    }
-    if (token.startsWith('V') && /^V[A-Z0-9]{2,}$/i.test(token)) {
-      return '업체 코드 (Vendor Code)';
-    }
-    if (token.startsWith('P') && /^P[0-9A-Z]+/i.test(token)) {
-      return '부품 번호 (Part Number)';
-    }
-    if (token.startsWith('S') && /^S[A-Z0-9]{1,6}$/i.test(token)) {
-      return '서열 코드 (Sequence Code)';
-    }
-    if (token.startsWith('T') && /^T\d{6}/.test(token)) {
-      return '추적 코드 (Trace Code)';
-    }
-    if (token === 'N' || token === 'Y') {
-      return '초도품 구분 (First Item Flag)';
-    }
-    if (/^[A-Z][A-Z0-9]{2,}$/i.test(token) && token.length > 3) {
-      return '업체 영역 (Company Area)';
-    }
-    if (token === '\x04' || token === 'EOT' || token === '#') {
-      return '트레일러 (Trailer)';
-    }
-    
-    return '일반 데이터 (General Data)';
-  }
-
-  // 토큰 검증 함수
-  function validateToken(token, index) {
-    if (index === 0 && !token.startsWith('[)>')) {
-      return { isValid: false, message: '헤더 형식이 올바르지 않습니다' };
-    }
-    if (token.startsWith('V') && !/^V[A-Z0-9]{2,}$/i.test(token)) {
-      return { isValid: false, message: '업체 코드 형식이 올바르지 않습니다' };
-    }
-    if (token.startsWith('P') && !/^P[0-9A-Z]+/i.test(token)) {
-      return { isValid: false, message: '부품 번호 형식이 올바르지 않습니다' };
-    }
-    if (token.startsWith('S') && !/^S[A-Z0-9]{1,6}$/i.test(token)) {
-      return { isValid: false, message: '서열 코드 형식이 올바르지 않습니다' };
-    }
-    if (token.startsWith('T') && !/^T\d{6}/.test(token)) {
-      return { isValid: false, message: '추적 코드 형식이 올바르지 않습니다' };
-    }
-    
-    return { isValid: true, message: '형식이 올바릅니다' };
-  }
-
-  // HTML 이스케이프 함수
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  // 카메라 시작 - decodeFromVideoDevice 방식으로 변경
+  // 카메라 시작
   startBtn.addEventListener('click', async () => {
     if (isScanning) return;
     
@@ -282,7 +346,7 @@
         return;
       }
       
-      // 후면 카메라 우선 선택 (iPhone에서 더 나은 품질)
+      // 후면 카메라 우선 선택
       let selectedDeviceId = videoInputDevices[0].deviceId;
       const backCamera = videoInputDevices.find(device => 
         device.label.toLowerCase().includes('back') || 
@@ -304,11 +368,9 @@
       // 지속적인 디코딩 시작
       codeReader.decodeFromVideoDevice(selectedDeviceId, video, (result, err) => {
         if (result) {
-          // 성공적으로 디코딩된 경우
           updateStatus('코드 인식 성공!');
           parseAndValidate(result.text);
           
-          // 잠시 후 스캔 상태로 복귀
           setTimeout(() => {
             if (isScanning) {
               updateStatus('코드를 스캔 중...');
@@ -378,195 +440,158 @@
     reader.readAsDataURL(file);
   });
 
-  // 데이터 파싱 및 검증 함수들
-  function normalizeControls(s){
-    if(!s) return '';
-    s = s.replace(/\\r\\n/g,'').replace(/\\r/g,'').replace(/\\n/g,'');
-    s = s.replace(/\\[\\>\\)]/g,'[)>');
-    s = s.replace(/<RS>|\\bRS\\b/gi, '\x1E');
-    s = s.replace(/<GS>|\\bGS\\b/gi, '\x1D');
-    s = s.replace(/<EOT>|\\bEOT\\b/gi, '\x04');
-    s = s.replace(/[\u001D\u001E\u0004]/g, function(ch){ return ch; });
-    return s.trim();
-  }
-
-  function splitTokens(s){
-    const GS = '\x1D';
-    if(s.indexOf(GS) >= 0) return s.split(GS).map(x => x.trim());
-    const alt = s.split(/[\u001D\u001E#\|]/).map(x=>x.trim()).filter(Boolean);
-    return alt;
-  }
-
-  function parseAndValidate(raw){
-    raw = raw || '';
-    const original = raw;
-    raw = normalizeControls(raw);
-
-    rawText.innerText = printableRepresentation(original);
-
-    // 토큰 분리 및 탭 생성
-    const tokens = splitTokens(raw);
-    createTokenTabs(tokens);
-
-    let header_ok = false, header_val='';
-    const RS = '\x1E';
-    if(raw.indexOf('[)>') >= 0 && raw.indexOf(RS+'06') >= 0) {
-      header_ok = true;
-      header_val = '[)>' + '\\u001E' + '06';
-    } else {
-      if(/^\[>\)|^\[\)\>/.test(raw) || raw.startsWith('[)>')) {
-        header_ok = raw.includes('06');
-        header_val = raw.slice(0, Math.min(6, raw.length));
-      }
-    }
-    setCell('hdrRes', header_ok, header_val);
-
-    ['vendor','part','seq','date','m4','a','trace','first','area','trail'].forEach(k=>{
-      setCell(k+'Res', null, '');
-    });
-
-    let vendor = '', part = '', seq = '', date='', m4='', a_or='',
-        trace='', firstFlag='', area='', trailer='';
-
-    if(raw.indexOf('\x04')>=0 || raw.indexOf('EOT')>=0 || raw.indexOf('#')>=0) {
-      trailer = 'present';
-    } else trailer = 'missing';
-
-    setCell('trailRes', !!trailer && trailer!=='missing', trailer);
-
-    let work = raw;
-    if(header_ok) {
-      const idx = work.indexOf('06');
-      if(idx>=0) work = work.slice(idx+2);
-    }
-
-    const parts = splitTokens(work).filter(x=>x.length>0);
+  // DataMatrix 파싱 및 검증 함수
+  function parseAndValidate(raw) {
+    if (!raw) return;
     
-    if(parts.length>0){
-      vendor = parts[0].replace(/^[\x1D\x1E]+/,'');
-      if(/^V[A-Z0-9]{3,4}$/i.test(vendor) && vendor.length>3) vendor = vendor.slice(1);
-    }
+    // 원본 데이터 표시 (특수 문자 시각화)
+    const displayText = raw
+      .replace(/\x1D/g, '<span class="gs">ᴳS</span>')
+      .replace(/\x1E/g, '<span class="rs">ᴿS</span>')
+      .replace(/\x04/g, '<span class="eot">EOT</span>')
+      .replace(/#/g, '#<br>');
+    
+    rawText.innerHTML = displayText;
+    
+    // 검증 결과 초기화
+    clearResults();
+    
+    // DataAnalyzer.js 규칙에 따른 검증 수행
+    const validationResult = validateDataMatrix(raw);
+    
+    // 검증 결과 표시
+    Object.keys(validationResult).forEach(key => {
+      const result = validationResult[key];
+      setResult(key, result.ok, result.value);
+    });
+  }
 
-    for(let t of parts){
-      if(/^P[0-9A-Z]+/i.test(t)){
-        part = t.replace(/^P/,'P');
-        break;
-      }
+  // DataAnalyzer.js 검증 규칙 구현
+  function validateDataMatrix(raw) {
+    const result = {
+      '00': { ok: false, value: '' }, // Header
+      '10': { ok: false, value: '' }, // 업체코드
+      '11': { ok: false, value: '' }, // 부품번호
+      '12': { ok: false, value: '' }, // 서열코드
+      '13': { ok: false, value: '' }, // EO번호
+      '20': { ok: false, value: '' }, // 생산일자
+      '21': { ok: false, value: '' }, // 부품4M
+      '22': { ok: false, value: '' }, // A or @
+      '23': { ok: false, value: '' }, // 추적번호
+      '30': { ok: false, value: '' }, // 특이정보
+      '31': { ok: false, value: '' }, // 초도품구분
+      '40': { ok: false, value: '' }, // 업체영역
+      '50': { ok: false, value: '' }  // Trailer
+    };
+    
+    // Header 검증: "[)>06"
+    if (raw.startsWith('[)>') && raw.includes('\x1E06')) {
+      result['00'].ok = true;
+      result['00'].value = '[)>' + String.fromCharCode(30) + '06';
     }
-
-    for(let t of parts){
-      if(/^S[A-Z0-9]{1,6}/i.test(t) && !/^P/.test(t)){
-        seq = t;
-        break;
-      }
+    
+    // Trailer 검증: EOT 또는 #
+    if (raw.endsWith('\x04') || raw.endsWith('#')) {
+      result['50'].ok = true;
+      result['50'].value = raw.endsWith('\x04') ? 'EOT' : '#';
     }
-
-    for(let t of parts){
-      if(/^T\d{6}[A-Z0-9@]{4,}/i.test(t) || /^T/.test(t)){
-        trace = t;
-        break;
-      }
-    }
-
-    if(trace){
-      const m = trace.match(/^T(\d{6})([A-Z0-9]{2,5})([A@])([A-Z0-9]+)$/i);
-      if(m){
-        date = m[1];
-        m4 = m[2];
-        a_or = m[3];
-        trace = m[4];
-      } else {
-        const m2 = trace.match(/^T(\d{6})(.+)$/i);
-        if(m2){
-          date = m2[1];
-          const rest = m2[2];
-          const mm = rest.match(/^([A-Z0-9]{3,5})([A@])([A-Z0-9]+)$/i);
-          if(mm){ m4 = mm[1]; a_or = mm[2]; trace = mm[3]; }
-          else {
-            const mm2 = rest.match(/^([A-Z0-9]{3,6})([0-9]{6,})$/i);
-            if(mm2){ m4 = mm2[1]; trace = mm2[2]; }
-            else {
-              trace = rest;
-            }
+    
+    // GS 구분자로 토큰 분리
+    const tokens = raw.split('\x1D').map(token => token.trim()).filter(token => token.length > 0);
+    
+    // 각 토큰 분석
+    tokens.forEach(token => {
+      if (token.startsWith('V') && token.length === 5) {
+        // 업체코드: V + 4자리
+        result['10'].ok = true;
+        result['10'].value = token.substring(1);
+      } else if (token.startsWith('P') && token.length > 10 && token.length < 17 && !token.includes('-')) {
+        // 부품번호: P + 10-16자리, 하이픈 없음
+        result['11'].ok = true;
+        result['11'].value = token.substring(1);
+      } else if (token.startsWith('S') && token.length > 0 && token.length < 10) {
+        // 서열코드: S + 1-9자리
+        result['12'].ok = true;
+        result['12'].value = token.substring(1);
+      } else if (token.startsWith('E') && ((token.length > 8 && token.length < 11) || token.length === 1)) {
+        // EO번호: E + 8-10자리 또는 E만
+        result['13'].ok = true;
+        result['13'].value = token.substring(1);
+      } else if (token.startsWith('T')) {
+        // 추적정보: T + 여러 필드
+        const tContent = token.substring(1);
+        
+        // 생산일자 (6자리)
+        if (tContent.length >= 6) {
+          const dateStr = tContent.substring(0, 6);
+          if (isValidDate(dateStr)) {
+            result['20'].ok = true;
+            result['20'].value = dateStr;
           }
         }
+        
+        // 부품4M (4자리)
+        if (tContent.length >= 10) {
+          const m4Str = tContent.substring(6, 10);
+          result['21'].ok = true;
+          result['21'].value = m4Str;
+        }
+        
+        // A or @ (1자리)
+        if (tContent.length >= 11) {
+          const aChar = tContent.charAt(10);
+          if (aChar === 'A' || aChar === '@') {
+            result['22'].ok = true;
+            result['22'].value = aChar;
+          }
+        }
+        
+        // 추적번호 (7자리 이상)
+        if (tContent.length > 11) {
+          const traceStr = tContent.substring(11);
+          if (traceStr.length >= 7) {
+            result['23'].ok = true;
+            result['23'].value = traceStr;
+          }
+        }
+      } else if (/^[1-9]/.test(token) && token.length > 1 && token.length < 42) {
+        // 특이정보: 1-9로 시작, 2-41자리
+        result['30'].ok = true;
+        result['30'].value = token.substring(1);
+      } else if (token.startsWith('M') && (token.length === 1 || (token.length === 2 && (token.charAt(1) === 'Y' || token.charAt(1) === 'N')))) {
+        // 초도품구분: M 또는 MY/MN
+        result['31'].ok = true;
+        result['31'].value = token.length === 1 ? '' : token.charAt(1);
+      } else if (token.startsWith('C') && token.length > 0 && token.length < 52) {
+        // 업체영역: C + 1-51자리
+        result['40'].ok = true;
+        result['40'].value = token.substring(1);
       }
-    }
-
-    for(let t of parts){
-      if(/^[NY]$/i.test(t) && t.length===1) { firstFlag = t; break; }
-    }
-
-    for(let i=parts.length-1;i>=0;i--){
-      const t=parts[i];
-      if(/^[A-Z][A-Z0-9]{2,}$/i.test(t) && t.length>3){
-        area = t;
-        break;
-      }
-    }
-
-    const vendor_ok = /^[A-Z0-9]{3,5}$/i.test(vendor);
-    setCell('vendorRes', vendor_ok, vendor);
-
-    const part_ok = /^P?[0-9A-Z]{4,}$/i.test(part) || /P\d{3,}/i.test(part);
-    setCell('partRes', part_ok, part);
-
-    const seq_ok = /^S[A-Z0-9]{1,6}$/i.test(seq);
-    setCell('seqRes', seq_ok, seq);
-
-    let date_ok=false;
-    if(/^\d{6}$/.test(date)){
-      const yy = parseInt(date.slice(0,2),10);
-      const mm = parseInt(date.slice(2,4),10);
-      const dd = parseInt(date.slice(4,6),10);
-      if(mm>=1 && mm<=12 && dd>=1 && dd<=31) date_ok = true;
-    }
-    setCell('dateRes', date_ok, date);
-
-    const m4_ok = /^[A-Z0-9]{3,5}$/i.test(m4);
-    setCell('m4Res', m4_ok, m4);
-
-    const a_ok = /^[A@]$/.test(a_or);
-    setCell('aRes', a_ok, a_or);
-
-    const trace_ok = trace && trace.length>=7;
-    setCell('traceRes', trace_ok, trace);
-
-    const first_ok = firstFlag ? /^[NY]$/i.test(firstFlag) : true;
-    setCell('firstRes', first_ok, firstFlag);
-
-    const area_ok = area ? /^[A-Z][A-Z0-9]{2,}$/i.test(area) : false;
-    setCell('areaRes', area_ok, area);
-
-    const trailer_ok = (raw.indexOf('\x04')>=0) || /EOT|#/.test(raw);
-    setCell('trailRes', trailer_ok, trailer_ok ? 'present' : 'missing');
-
-    return {
-      header_ok, vendor, vendor_ok, part, part_ok, seq, seq_ok,
-      date, date_ok, m4, m4_ok, a_or, a_ok, trace, trace_ok,
-      firstFlag, first_ok, area, area_ok, trailer_ok
-    };
-  }
-
-  function printableRepresentation(s){
-    if(!s) return '';
-    return s.replace(/\x1E/g,'<RS>').replace(/\x1D/g,'<GS>').replace(/\x04/g,'<EOT>');
-  }
-
-  // 초기화 버튼
-  document.getElementById('clearBtn').addEventListener('click', ()=>{
-    rawText.innerText = '(스캔 또는 업로드 후 결과가 여기에 표시됩니다)';
-    tabsHeader.innerHTML = '';
-    tabContents.innerHTML = '';
-    ['hdr','vendor','part','seq','date','m4','a','trace','first','area','trail'].forEach(k=>{
-      const rid = k+'Res'; document.getElementById(rid).innerHTML='';
-      const vid = k+'Val'; if(document.getElementById(vid)) document.getElementById(vid).innerText='';
     });
-    updateStatus('카메라 시작 버튼을 누르세요');
-  });
+    
+    return result;
+  }
 
-  window._parseAndValidate = parseAndValidate;
+  // 날짜 유효성 검사 (yymmdd)
+  function isValidDate(dateStr) {
+    if (!/^\d{6}$/.test(dateStr)) return false;
+    
+    const year = parseInt('20' + dateStr.substring(0, 2), 10);
+    const month = parseInt(dateStr.substring(2, 4), 10);
+    const day = parseInt(dateStr.substring(4, 6), 10);
+    
+    if (month < 1 || month > 12) return false;
+    if (day < 1 || day > 31) return false;
+    
+    // 간단한 월별 일수 검증 (윤년은 고려하지 않음)
+    const daysInMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    if (day > daysInMonth[month - 1]) return false;
+    
+    return true;
+  }
 
+  // 페이지 로드 시 초기화
+  clearResults();
 })();
 </script>
 </body>
