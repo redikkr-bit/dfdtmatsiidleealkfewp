@@ -4,136 +4,183 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DataMatrix 검증기</title>
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.6/umd/index.min.js"></script>
 <style>
   body {
-    font-family: 'Segoe UI', sans-serif;
-    text-align: center;
+    background-color: #f0f3f7;
+    font-family: Arial, sans-serif;
     margin: 0;
-    padding: 0;
-    background: #f7f7f7;
+    text-align: center;
   }
   h2 {
-    background: #004aad;
-    color: white;
-    padding: 10px;
-    margin: 0;
+    color: #333;
+    margin-top: 16px;
   }
-  video {
+  #video {
     width: 90%;
-    max-width: 500px;
-    margin-top: 10px;
-    border-radius: 10px;
-    border: 3px solid #004aad;
+    max-width: 480px;
+    border-radius: 12px;
+    border: 3px solid #007bff;
+    background-color: #000;
   }
-  #result {
-    margin-top: 20px;
-    font-size: 1rem;
-    white-space: pre-wrap;
-    text-align: left;
-    display: inline-block;
+  #result-box {
+    margin-top: 16px;
     background: white;
-    border-radius: 8px;
-    padding: 10px;
+    border-radius: 10px;
+    padding: 16px;
+    display: inline-block;
+    text-align: left;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     width: 90%;
-    max-width: 500px;
-    box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    max-width: 480px;
   }
-  .ok { color: green; font-weight: bold; }
-  .ng { color: red; font-weight: bold; }
+  #result-text {
+    font-size: 14px;
+    color: #333;
+    word-break: break-all;
+  }
+  #start-btn {
+    margin-top: 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  #start-btn:hover {
+    background-color: #0056b3;
+  }
+  .ok { color: #28a745; font-weight: bold; }
+  .err { color: #d93025; font-weight: bold; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+  }
+  th, td {
+    border-bottom: 1px solid #ddd;
+    padding: 4px;
+    text-align: left;
+  }
+  th { background: #f5f5f5; }
 </style>
 </head>
-
 <body>
+
 <h2>📦 DataMatrix 코드 검증기</h2>
-<video id="video" autoplay muted playsinline></video>
-<div id="result">카메라가 준비되었습니다. 코드를 비춰주세요.</div>
+<video id="video" playsinline autoplay></video>
+<br>
+<button id="start-btn">카메라 실행</button>
+
+<div id="result-box">
+  <h3>🔍 스캔 결과</h3>
+  <div id="result-text">아직 인식된 코드가 없습니다.</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.6/umd/index.min.js"></script>
 
 <script>
-const resultBox = document.getElementById('result');
-const codeReader = new ZXing.BrowserMultiFormatReader();
+const video = document.getElementById('video');
+const resultText = document.getElementById('result-text');
+const startBtn = document.getElementById('start-btn');
+let codeReader;
 
-async function startScanner() {
+async function startCamera() {
+  startBtn.disabled = true;
+  startBtn.innerText = "카메라 준비 중...";
+
   try {
+    codeReader = new ZXing.BrowserMultiFormatReader();
     const devices = await codeReader.listVideoInputDevices();
-    // 후면 카메라 우선 선택
-    const backCam = devices.find(d => /back|rear|후면|환경/i.test(d.label)) || devices[0];
-
-    await codeReader.decodeFromVideoDevice(backCam.deviceId, 'video', (result, err) => {
-      if (result) {
-        handleCode(result.text);
-      }
+    if (devices.length === 0) {
+      alert("카메라를 찾을 수 없습니다.");
+      return;
+    }
+    const backCam = devices.find(d => /back|rear|후면/i.test(d.label)) || devices[0];
+    await codeReader.decodeFromVideoDevice(backCam.deviceId, video, (result, err) => {
+      if (result) handleResult(result.text);
     });
-  } catch (err) {
-    console.error(err);
-    resultBox.textContent = '❌ 카메라 접근 실패: ' + err;
+
+    startBtn.innerText = "스캔 중...";
+    startBtn.style.background = "#28a745";
+    startBtn.textContent = "카메라 작동 중";
+  } catch (e) {
+    console.error(e);
+    alert("카메라 접근 오류: " + e.message);
+    startBtn.disabled = false;
+    startBtn.innerText = "카메라 다시 실행";
   }
 }
 
-// ------------------------------
-// 📏 검증 규칙 (참고: 업로드된 스크린샷 기반)
-// ------------------------------
-function validateCode(text) {
-  const rules = [];
-
-  // ANSI MH10.8.2 형태 파악 여부
-  const hasHeader = text.startsWith("[)>");
-  const hasTrailer = text.includes("");
-  if (hasHeader && hasTrailer) {
-    rules.push({ name: "형식 식별", ok: true, value: "ISO15434 구조 감지됨" });
-  } else {
-    rules.push({ name: "형식 식별", ok: false, value: "ISO15434 형식 아님" });
-  }
-
-  // T(날짜) 필드 확인
-  const tMatch = text.match(/T(\d{6,8})/);
-  if (tMatch) {
-    rules.push({ name: "날짜 코드(T)", ok: true, value: tMatch[1] });
-  } else {
-    rules.push({ name: "날짜 코드(T)", ok: false, value: "누락됨" });
-  }
-
-  // DWA, DRM 등 시리얼 코드 확인
-  const serialMatch = text.match(/DWA\d+|DRM\d+|A\d{5,}/);
-  if (serialMatch) {
-    rules.push({ name: "시리얼코드", ok: true, value: serialMatch[0] });
-  } else {
-    rules.push({ name: "시리얼코드", ok: false, value: "없음" });
-  }
-
-  // P(품번) 필드 확인
-  const pMatch = text.match(/P\d{5,}/g);
-  if (pMatch) {
-    rules.push({ name: "품번(P)", ok: true, value: pMatch.join(', ') });
-  } else {
-    rules.push({ name: "품번(P)", ok: false, value: "없음" });
-  }
-
-  // S(서열코드)
-  const sMatch = text.match(/S[A-Z0-9]+/);
-  if (sMatch) {
-    rules.push({ name: "서열코드(S)", ok: true, value: sMatch[0] });
-  } else {
-    rules.push({ name: "서열코드(S)", ok: false, value: "없음" });
-  }
-
-  return rules;
+function handleResult(data) {
+  resultText.innerHTML = `<b>인식된 데이터:</b><br>${data.replace(/\r?\n/g, '<br>')}`;
+  const parsed = parseDataMatrix(data);
+  resultText.innerHTML += parsed.html;
 }
 
-// ------------------------------
-// 결과 표시
-// ------------------------------
-function handleCode(text) {
-  const rules = validateCode(text);
-  let html = `<div style="font-size:0.9rem;"><b>인식된 코드:</b><br>${text}</div><hr>`;
-  rules.forEach(r => {
-    html += `<div>${r.ok ? "✅" : "❌"} <b>${r.name}</b> → <span class="${r.ok ? 'ok' : 'ng'}">${r.value}</span></div>`;
-  });
-  resultBox.innerHTML = html;
+function parseDataMatrix(raw) {
+  let html = "<hr><b>세부 분석 결과</b><br>";
+  const errors = [];
+
+  // 기본 구문 체크
+  if (!raw.includes("[)>") || !raw.includes("06") || !raw.includes("")) {
+    html += `<div class="err">❌ 기본 구조 오류 ([)> ...  누락)</div>`;
+    return { html };
+  }
+
+  // 구분자 단위로 나누기 ( = ASCII 29)
+  const parts = raw.split("").filter(p => p.trim() !== "");
+
+  const data = {
+    header: parts[0] || "",
+    model: parts.find(p => p.startsWith("V")) || "",
+    part: parts.find(p => p.startsWith("P")) || "",
+    line: parts.find(p => p.startsWith("S")) || "",
+    trace: parts.find(p => p.startsWith("T")) || "",
+    maker: parts.find(p => p.startsWith("C")) || "",
+  };
+
+  // 날짜 및 시리얼 분리
+  let datePart = "", serialPart = "";
+  if (data.trace && data.trace.length > 8) {
+    const t = data.trace.substring(1); // 'T' 제거
+    const y = "20" + t.substring(0, 2);
+    const m = t.substring(2, 4);
+    const d = t.substring(4, 6);
+    datePart = `${y}-${m}-${d}`;
+    serialPart = t.substring(6);
+  }
+
+  // 검증 규칙
+  if (!/V[A-Z0-9]{2,}/.test(data.model)) errors.push("모델 코드 오류");
+  if (!/^P\d{5,}/.test(data.part)) errors.push("부품 코드 형식 오류");
+  if (!/^S[A-Z0-9]+/.test(data.line)) errors.push("라인 코드 형식 오류");
+  if (!/^T\d{6}/.test(data.trace)) errors.push("트레이스 코드 형식 오류");
+  if (!/^C[A-Z]+/.test(data.maker)) errors.push("업체 코드 형식 오류");
+
+  const valid = errors.length === 0;
+
+  html += `
+  <table>
+    <tr><th>항목</th><th>값</th></tr>
+    <tr><td>모델</td><td>${data.model}</td></tr>
+    <tr><td>부품코드</td><td>${data.part}</td></tr>
+    <tr><td>라인코드</td><td>${data.line}</td></tr>
+    <tr><td>날짜</td><td>${datePart}</td></tr>
+    <tr><td>시리얼</td><td>${serialPart}</td></tr>
+    <tr><td>업체</td><td>${data.maker}</td></tr>
+  </table>`;
+
+  html += valid
+    ? `<div class="ok">✅ 형식 검증 통과</div>`
+    : `<div class="err">❌ 오류 항목: ${errors.join(", ")}</div>`;
+
+  return { html };
 }
 
-// 실행
-startScanner();
+startBtn.addEventListener('click', startCamera);
 </script>
+
 </body>
 </html>
