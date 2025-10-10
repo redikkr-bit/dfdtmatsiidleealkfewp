@@ -4,104 +4,86 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DataMatrix 코드 검증기</title>
+
+<!-- 🔹 iPhone 웹앱(PWA) 메타 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="DataMatrix 검증기">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+
 <style>
   body {
+    background-color: #f5f7fb;
+    font-family: 'Segoe UI', sans-serif;
     margin: 0;
-    font-family: 'Arial', sans-serif;
-    background: #eef2f7;
     text-align: center;
-    color: #333;
   }
-
   header {
     background: #1d3557;
     color: white;
-    padding: 14px 0;
+    padding: 12px 0;
     font-size: 18px;
     font-weight: bold;
-    letter-spacing: 0.5px;
   }
-
-  #camera-box {
-    background: black;
-    width: 100%;
-    max-width: 500px;
-    margin: 10px auto;
-    border-radius: 10px;
-    overflow: hidden;
-    position: relative;
-  }
-
   video {
-    width: 100%;
-    height: auto;
-    object-fit: cover;
-  }
-
-  #start-btn {
+    width: 90%;
+    max-width: 500px;
     margin-top: 10px;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 6px;
+    border-radius: 10px;
+    border: 3px solid #007bff;
+    background: #000;
+  }
+  #buttons {
+    margin-top: 10px;
+  }
+  button {
+    margin: 4px;
     background: #457b9d;
     color: white;
-    font-size: 16px;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
     cursor: pointer;
   }
-
-  #start-btn:disabled {
-    background: gray;
-    cursor: not-allowed;
+  button:disabled {
+    background: #bbb;
   }
-
-  #result-panel {
+  #result-box {
     background: white;
-    border-radius: 12px;
+    border-radius: 10px;
     margin: 16px auto;
     padding: 16px;
     width: 90%;
     max-width: 500px;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     text-align: left;
   }
-
   .field {
     display: flex;
     justify-content: space-between;
-    padding: 8px 0;
     border-bottom: 1px solid #eee;
+    padding: 6px 0;
   }
-
   .label {
     font-weight: bold;
     color: #1d3557;
   }
-
   .value {
-    color: #111;
-    font-weight: 500;
+    color: #222;
   }
-
   .status-ok {
     color: #2a9d8f;
     font-weight: bold;
-    font-size: 15px;
     text-align: center;
     margin-top: 10px;
   }
-
   .status-err {
     color: #e63946;
     font-weight: bold;
-    font-size: 15px;
     text-align: center;
     margin-top: 10px;
-  }
-
-  footer {
-    margin: 10px;
-    font-size: 12px;
-    color: #777;
   }
 </style>
 </head>
@@ -109,32 +91,33 @@
 
 <header>📦 DataMatrix 코드 검증기</header>
 
-<div id="camera-box">
-  <video id="video" playsinline autoplay></video>
+<video id="video" playsinline autoplay></video>
+
+<div id="buttons">
+  <button id="startBtn">카메라 실행</button>
+  <button id="stopBtn">정지</button>
+  <input type="file" id="fileInput" accept="image/*" style="display:none;">
 </div>
 
-<button id="start-btn">카메라 실행</button>
-
-<div id="result-panel">
+<div id="result-box">
   <div class="field"><div class="label">모델</div><div class="value" id="model-val">-</div></div>
   <div class="field"><div class="label">부품코드</div><div class="value" id="part-val">-</div></div>
   <div class="field"><div class="label">라인코드</div><div class="value" id="line-val">-</div></div>
   <div class="field"><div class="label">생산일자</div><div class="value" id="date-val">-</div></div>
   <div class="field"><div class="label">시리얼</div><div class="value" id="serial-val">-</div></div>
   <div class="field"><div class="label">업체</div><div class="value" id="maker-val">-</div></div>
-
   <div id="status-text" class="status-err">인식 대기 중...</div>
 </div>
 
-<footer>ver. Web Scanner UI - iOS Safari 최적화</footer>
+<footer style="margin:10px;font-size:12px;color:#777;">ver. WebApp - iOS Safari 호환</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.6/umd/index.min.js"></script>
 
 <script>
-const startBtn = document.getElementById('start-btn');
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
 const video = document.getElementById('video');
 const statusText = document.getElementById('status-text');
-
 const fModel = document.getElementById('model-val');
 const fPart = document.getElementById('part-val');
 const fLine = document.getElementById('line-val');
@@ -143,50 +126,60 @@ const fSerial = document.getElementById('serial-val');
 const fMaker = document.getElementById('maker-val');
 
 let codeReader;
+let activeDeviceId = null;
 
 async function startCamera() {
   startBtn.disabled = true;
-  startBtn.innerText = "카메라 실행 중...";
-
+  startBtn.innerText = "카메라 작동 중...";
   try {
     codeReader = new ZXing.BrowserMultiFormatReader();
     const devices = await codeReader.listVideoInputDevices();
     if (devices.length === 0) {
-      alert("카메라를 찾을 수 없습니다.");
+      alert("카메라 장치가 없습니다.");
       return;
     }
 
     const backCam = devices.find(d => /back|rear|후면/i.test(d.label)) || devices[0];
-    await codeReader.decodeFromVideoDevice(backCam.deviceId, video, (result, err) => {
-      if (result) parseCode(result.text);
+    activeDeviceId = backCam.deviceId;
+
+    await codeReader.decodeFromVideoDevice(activeDeviceId, video, (result, err) => {
+      if (result) parseData(result.text);
     });
 
     statusText.textContent = "카메라 작동 중...";
     statusText.className = "status-ok";
-    startBtn.innerText = "스캔 중...";
   } catch (e) {
     console.error(e);
     alert("카메라 접근 오류: " + e.message);
     startBtn.disabled = false;
-    startBtn.innerText = "카메라 다시 실행";
   }
 }
 
-function parseCode(raw) {
-  if (!raw.includes("[)>") || !raw.includes("06") || !raw.includes("")) {
-    statusText.textContent = "❌ 코드 구조 오류";
+function stopCamera() {
+  if (codeReader) {
+    codeReader.reset();
+  }
+  video.srcObject = null;
+  startBtn.disabled = false;
+  startBtn.innerText = "카메라 실행";
+  statusText.textContent = "카메라 정지됨";
+  statusText.className = "status-err";
+}
+
+function parseData(raw) {
+  if (!raw.includes("[)>") || !raw.includes("06")) {
+    statusText.textContent = "❌ 형식 오류: [)> ... 06 누락";
     statusText.className = "status-err";
     return;
   }
 
   const parts = raw.split("").filter(p => p.trim() !== "");
-
   const data = {
     model: parts.find(p => p.startsWith("V")) || "",
     part: parts.find(p => p.startsWith("P")) || "",
     line: parts.find(p => p.startsWith("S")) || "",
     trace: parts.find(p => p.startsWith("T")) || "",
-    maker: parts.find(p => p.startsWith("C")) || "",
+    maker: parts.find(p => p.startsWith("C")) || ""
   };
 
   let datePart = "", serialPart = "";
@@ -206,7 +199,6 @@ function parseCode(raw) {
   fSerial.textContent = serialPart || "-";
   fMaker.textContent = data.maker || "-";
 
-  // 검증 로직
   const errors = [];
   if (!/V[A-Z0-9]{2,}/.test(data.model)) errors.push("모델");
   if (!/^P\d{5,}/.test(data.part)) errors.push("부품");
@@ -218,13 +210,20 @@ function parseCode(raw) {
     statusText.textContent = "✅ 검증 완료 (정상)";
     statusText.className = "status-ok";
   } else {
-    statusText.textContent = `❌ 오류: ${errors.join(", ")}`;
+    statusText.textContent = "❌ 오류: " + errors.join(", ");
     statusText.className = "status-err";
   }
 }
 
 startBtn.addEventListener('click', startCamera);
-</script>
+stopBtn.addEventListener('click', stopCamera);
 
+// ✅ PWA service worker 등록
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js")
+    .then(() => console.log("Service Worker registered"))
+    .catch(e => console.log("SW registration failed", e));
+}
+</script>
 </body>
 </html>
