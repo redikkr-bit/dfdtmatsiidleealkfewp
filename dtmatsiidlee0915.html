@@ -1,229 +1,413 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DataMatrix 코드 검증기</title>
-
-<!-- 🔹 iPhone 웹앱(PWA) 메타 -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="DataMatrix 검증기">
-<link rel="apple-touch-icon" href="icon-192.png">
-<link rel="manifest" href="manifest.json">
-
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>DataMatrix Validator (iPhone Safari)</title>
 <style>
-  body {
-    background-color: #f5f7fb;
-    font-family: 'Segoe UI', sans-serif;
-    margin: 0;
-    text-align: center;
-  }
-  header {
-    background: #1d3557;
-    color: white;
-    padding: 12px 0;
-    font-size: 18px;
-    font-weight: bold;
-  }
-  video {
-    width: 90%;
-    max-width: 500px;
-    margin-top: 10px;
-    border-radius: 10px;
-    border: 3px solid #007bff;
-    background: #000;
-  }
-  #buttons {
-    margin-top: 10px;
-  }
-  button {
-    margin: 4px;
-    background: #457b9d;
-    color: white;
-    border: none;
-    padding: 10px 16px;
-    border-radius: 6px;
-    font-size: 14px;
-    cursor: pointer;
-  }
-  button:disabled {
-    background: #bbb;
-  }
-  #result-box {
-    background: white;
-    border-radius: 10px;
-    margin: 16px auto;
-    padding: 16px;
-    width: 90%;
-    max-width: 500px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    text-align: left;
-  }
-  .field {
-    display: flex;
-    justify-content: space-between;
-    border-bottom: 1px solid #eee;
-    padding: 6px 0;
-  }
-  .label {
-    font-weight: bold;
-    color: #1d3557;
-  }
-  .value {
-    color: #222;
-  }
-  .status-ok {
-    color: #2a9d8f;
-    font-weight: bold;
-    text-align: center;
-    margin-top: 10px;
-  }
-  .status-err {
-    color: #e63946;
-    font-weight: bold;
-    text-align: center;
-    margin-top: 10px;
-  }
+  body{font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial; margin:0; padding:0; background:#f2f6fb; color:#222}
+  header{background:#1565c0;color:#fff;padding:12px 14px;font-size:18px;font-weight:600}
+  .container{padding:12px}
+  .video-wrap{background:#000;border-radius:8px;overflow:hidden;max-width:720px}
+  video{width:100%;height:auto;display:block}
+  .controls{margin-top:10px; display:flex; gap:8px; flex-wrap:wrap}
+  button{background:#0b79d0;color:#fff;border:none;padding:10px 12px;border-radius:8px;font-weight:600}
+  button.secondary{background:#ddd;color:#333}
+  .result{margin-top:14px;background:#fff;padding:10px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  pre.raw{white-space:pre-wrap;background:#111;color:#bde; padding:10px;border-radius:6px;overflow:auto}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{padding:8px;border:1px solid #e6eef8;text-align:left}
+  th{background:#f4f9ff}
+  .ok{color:#0b7b0b;font-weight:700}
+  .ng{color:#c62828;font-weight:700}
+  .hint{font-size:13px;color:#666;margin-top:8px}
+  input[type=file]{display:inline-block}
+  .small{font-size:13px;color:#444}
 </style>
+<!-- ZXing library (UMD build) -->
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.6/umd/index.min.js"></script>
 </head>
 <body>
+<header>DataMatrix 검증기 (iPhone Safari 사용 가능)</header>
+<div class="container">
+  <div class="video-wrap" id="videoWrap">
+    <video id="video" playsinline></video>
+  </div>
 
-<header>📦 DataMatrix 코드 검증기</header>
+  <div class="controls">
+    <button id="startBtn">Start Camera</button>
+    <button id="stopBtn" class="secondary">Stop Camera</button>
+    <label class="secondary small" style="padding:8px;border-radius:8px;cursor:pointer">
+      이미지 업로드
+      <input id="fileInput" type="file" accept="image/*" style="display:none" />
+    </label>
+    <button id="clearBtn" class="secondary">Clear</button>
+  </div>
 
-<video id="video" playsinline autoplay></video>
+  <div class="result" id="resultBox">
+    <div><strong>디코드 원문:</strong></div>
+    <pre class="raw" id="rawText">(스캔 또는 업로드 후 결과가 여기에 표시됩니다)</pre>
 
-<div id="buttons">
-  <button id="startBtn">카메라 실행</button>
-  <button id="stopBtn">정지</button>
-  <input type="file" id="fileInput" accept="image/*" style="display:none;">
+    <div class="hint">참고: ANSI / ISO 15434 스타일의 구분자( RS=ASCII30, GS=ASCII29, EOT=ASCII4 )와 일반문자 '#', 'EOT' 등 여러 표현을 허용하여 인식합니다.</div>
+
+    <table id="tableParsed">
+      <thead><tr><th>항목</th><th>결과</th><th>값</th></tr></thead>
+      <tbody>
+        <tr><td>Header</td><td id="hdrRes"></td><td id="hdrVal"></td></tr>
+        <tr><td>업체코드</td><td id="vendorRes"></td><td id="vendorVal"></td></tr>
+        <tr><td>부품번호</td><td id="partRes"></td><td id="partVal"></td></tr>
+        <tr><td>서열/서브코드</td><td id="seqRes"></td><td id="seqVal"></td></tr>
+        <tr><td>생산일자 (yymmdd)</td><td id="dateRes"></td><td id="dateVal"></td></tr>
+        <tr><td>부품4M</td><td id="m4Res"></td><td id="m4Val"></td></tr>
+        <tr><td>A or @</td><td id="aRes"></td><td id="aVal"></td></tr>
+        <tr><td>추적번호 (7자리 이상)</td><td id="traceRes"></td><td id="traceVal"></td></tr>
+        <tr><td>초도품구분</td><td id="firstRes"></td><td id="firstVal"></td></tr>
+        <tr><td>업체영역</td><td id="areaRes"></td><td id="areaVal"></td></tr>
+        <tr><td>Trailer</td><td id="trailRes"></td><td id="trailVal"></td></tr>
+      </tbody>
+    </table>
+
+    <div style="margin-top:10px"><strong>토큰 목록 (GS 분리):</strong>
+      <pre id="tokens" class="raw"></pre>
+    </div>
+  </div>
+
 </div>
-
-<div id="result-box">
-  <div class="field"><div class="label">모델</div><div class="value" id="model-val">-</div></div>
-  <div class="field"><div class="label">부품코드</div><div class="value" id="part-val">-</div></div>
-  <div class="field"><div class="label">라인코드</div><div class="value" id="line-val">-</div></div>
-  <div class="field"><div class="label">생산일자</div><div class="value" id="date-val">-</div></div>
-  <div class="field"><div class="label">시리얼</div><div class="value" id="serial-val">-</div></div>
-  <div class="field"><div class="label">업체</div><div class="value" id="maker-val">-</div></div>
-  <div id="status-text" class="status-err">인식 대기 중...</div>
-</div>
-
-<footer style="margin:10px;font-size:12px;color:#777;">ver. WebApp - iOS Safari 호환</footer>
-
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.6/umd/index.min.js"></script>
 
 <script>
-const startBtn = document.getElementById('startBtn');
-const stopBtn = document.getElementById('stopBtn');
-const video = document.getElementById('video');
-const statusText = document.getElementById('status-text');
-const fModel = document.getElementById('model-val');
-const fPart = document.getElementById('part-val');
-const fLine = document.getElementById('line-val');
-const fDate = document.getElementById('date-val');
-const fSerial = document.getElementById('serial-val');
-const fMaker = document.getElementById('maker-val');
+(function(){
+  const video = document.getElementById('video');
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const fileInput = document.getElementById('fileInput');
+  const rawText = document.getElementById('rawText');
+  const tokensEl = document.getElementById('tokens');
 
-let codeReader;
-let activeDeviceId = null;
-
-async function startCamera() {
-  startBtn.disabled = true;
-  startBtn.innerText = "카메라 작동 중...";
-  try {
-    codeReader = new ZXing.BrowserMultiFormatReader();
-    const devices = await codeReader.listVideoInputDevices();
-    if (devices.length === 0) {
-      alert("카메라 장치가 없습니다.");
-      return;
-    }
-
-    const backCam = devices.find(d => /back|rear|후면/i.test(d.label)) || devices[0];
-    activeDeviceId = backCam.deviceId;
-
-    await codeReader.decodeFromVideoDevice(activeDeviceId, video, (result, err) => {
-      if (result) parseData(result.text);
-    });
-
-    statusText.textContent = "카메라 작동 중...";
-    statusText.className = "status-ok";
-  } catch (e) {
-    console.error(e);
-    alert("카메라 접근 오류: " + e.message);
-    startBtn.disabled = false;
-  }
-}
-
-function stopCamera() {
-  if (codeReader) {
-    codeReader.reset();
-  }
-  video.srcObject = null;
-  startBtn.disabled = false;
-  startBtn.innerText = "카메라 실행";
-  statusText.textContent = "카메라 정지됨";
-  statusText.className = "status-err";
-}
-
-function parseData(raw) {
-  if (!raw.includes("[)>") || !raw.includes("06")) {
-    statusText.textContent = "❌ 형식 오류: [)> ... 06 누락";
-    statusText.className = "status-err";
-    return;
-  }
-
-  const parts = raw.split("").filter(p => p.trim() !== "");
-  const data = {
-    model: parts.find(p => p.startsWith("V")) || "",
-    part: parts.find(p => p.startsWith("P")) || "",
-    line: parts.find(p => p.startsWith("S")) || "",
-    trace: parts.find(p => p.startsWith("T")) || "",
-    maker: parts.find(p => p.startsWith("C")) || ""
+  const setCell = (id, ok, val) => {
+    const el = document.getElementById(id);
+    if(ok === null) { el.innerHTML=''; return; }
+    el.innerHTML = (ok?'<span class="ok">OK</span>':'<span class="ng">NG</span>');
+    // set corresponding value cell
+    const valElId = id.replace('Res','Val');
+    document.getElementById(valElId).innerText = val ?? '';
   };
 
-  let datePart = "", serialPart = "";
-  if (data.trace && data.trace.length > 8) {
-    const t = data.trace.substring(1);
-    const y = "20" + t.substring(0, 2);
-    const m = t.substring(2, 4);
-    const d = t.substring(4, 6);
-    datePart = `${y}-${m}-${d}`;
-    serialPart = t.substring(6);
+  // parser & validator
+  function normalizeControls(s){
+    if(!s) return '';
+    // In many decoders, control chars may appear as literal characters '' (0x1D) and '' (0x1E)
+    // Replace textual mentions like <RS>, RS, <GS> etc with actual chars, but be conservative.
+    s = s.replace(/\\r\\n/g,'').replace(/\\r/g,'').replace(/\\n/g,'');
+    // Convert common visible tokens to control chars for parsing
+    s = s.replace(/\\[\\>\\)]/g,'[)>'); // safety
+    s = s.replace(/<RS>|\\bRS\\b/gi, '\x1E');
+    s = s.replace(/<GS>|\\bGS\\b/gi, '\x1D');
+    s = s.replace(/<EOT>|\\bEOT\\b/gi, '\x04');
+    // Replace visible glyphs often copied from scanners
+    s = s.replace(/[\u001D\u001E\u0004]/g, function(ch){ return ch; });
+    // If someone used hashtags for end, leave '#'
+    return s.trim();
   }
 
-  fModel.textContent = data.model || "-";
-  fPart.textContent = data.part || "-";
-  fLine.textContent = data.line || "-";
-  fDate.textContent = datePart || "-";
-  fSerial.textContent = serialPart || "-";
-  fMaker.textContent = data.maker || "-";
-
-  const errors = [];
-  if (!/V[A-Z0-9]{2,}/.test(data.model)) errors.push("모델");
-  if (!/^P\d{5,}/.test(data.part)) errors.push("부품");
-  if (!/^S[A-Z0-9]+/.test(data.line)) errors.push("라인");
-  if (!/^T\d{6}/.test(data.trace)) errors.push("트레이스");
-  if (!/^C[A-Z]+/.test(data.maker)) errors.push("업체");
-
-  if (errors.length === 0) {
-    statusText.textContent = "✅ 검증 완료 (정상)";
-    statusText.className = "status-ok";
-  } else {
-    statusText.textContent = "❌ 오류: " + errors.join(", ");
-    statusText.className = "status-err";
+  function splitTokens(s){
+    // tokens separated by GS (0x1D)
+    const GS = '\x1D';
+    // If string doesn't contain GS but contains visible 'GS' words, split heuristically
+    if(s.indexOf(GS) >= 0) return s.split(GS).map(x => x.trim());
+    // try splitting by literal control-like characters
+    const alt = s.split(/[\u001D\u001E#\|]/).map(x=>x.trim()).filter(Boolean);
+    return alt;
   }
-}
 
-startBtn.addEventListener('click', startCamera);
-stopBtn.addEventListener('click', stopCamera);
+  function parseAndValidate(raw){
+    raw = raw || '';
+    const original = raw;
+    raw = normalizeControls(raw);
 
-// ✅ PWA service worker 등록
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js")
-    .then(() => console.log("Service Worker registered"))
-    .catch(e => console.log("SW registration failed", e));
-}
+    // fill raw area
+    rawText.innerText = printableRepresentation(original);
+
+    // find header: prefer "[)>" followed by RS + "06" (i.e. "[)>\x1E06")
+    let header_ok = false, header_val='';
+    const RS = '\x1E';
+    const GS = '\x1D';
+    if(raw.indexOf('[)>') >= 0 && raw.indexOf(RS+'06') >= 0) {
+      header_ok = true;
+      header_val = '[)>' + '\\u001E' + '06';
+    } else {
+      // try variant like ")]> RS06" or visible tokens
+      if(/^\[>\)|^\[\)\>/.test(raw) || raw.startsWith('[)>')) {
+        header_ok = raw.includes('06');
+        header_val = raw.slice(0, Math.min(6, raw.length));
+      }
+    }
+    setCell('hdrRes', header_ok, header_val);
+
+    // Now split tokens by GS
+    const tokens = splitTokens(raw);
+    tokensEl.innerText = JSON.stringify(tokens, null, 2);
+
+    // Default clear
+    ['vendor','part','seq','date','m4','a','trace','first','area','trail'].forEach(k=>{
+      setCell(k+'Res', null, '');
+    });
+
+    // heuristics to find core fields:
+    // find token that starts with 'P' and contains digits -> part
+    let vendor = '', part = '', seq = '', date='', m4='', a_or='',
+        trace='', firstFlag='', area='', trailer='';
+
+    // try to find trailer (EOT or '#')
+    if(raw.indexOf('\x04')>=0 || raw.indexOf('EOT')>=0 || raw.indexOf('#')>=0) {
+      trailer = 'present';
+    } else trailer = 'missing';
+
+    setCell('trailRes', !!trailer && trailer!=='missing', trailer);
+
+    // find first token that looks like header and then next tokens are meaningful
+    // Remove header portion if present
+    let work = raw;
+    if(header_ok) {
+      const idx = work.indexOf('06');
+      if(idx>=0) work = work.slice(idx+2);
+    }
+    // split remaining by GS or spaces
+    const parts = splitTokens(work).filter(x=>x.length>0);
+    // Attempt typical positions from examples:
+    // [vendor] [P...part...] [S...] [T...trace...] [MN or CS...] [CompanyName]
+    if(parts.length>0){
+      // try vendor
+      vendor = parts[0].replace(/^[\x1D\x1E]+/,'');
+      // If vendor has leading V (e.g., VKM54), remove leading V if next part seems KM54
+      if(/^V[A-Z0-9]{3,4}$/i.test(vendor) && vendor.length>3) vendor = vendor.slice(1);
+    }
+    // find part token (first token starting with P)
+    for(let t of parts){
+      if(/^P[0-9A-Z]+/i.test(t)){
+        part = t.replace(/^P/,'P'); // keep as-is
+        break;
+      }
+    }
+    // seq / s code: token beginning with S (but not the 'P' one)
+    for(let t of parts){
+      if(/^S[A-Z0-9]{1,6}/i.test(t) && !/^P/.test(t)){
+        seq = t;
+        break;
+      }
+    }
+    // trace token starting with T
+    for(let t of parts){
+      if(/^T\d{6}[A-Z0-9@]{4,}/i.test(t) || /^T/.test(t)){
+        trace = t;
+        break;
+      }
+    }
+    // from trace try to extract date(6), 4M(4), A/@, and trace num
+    if(trace){
+      const m = trace.match(/^T(\d{6})([A-Z0-9]{2,5})([A@])([A-Z0-9]+)$/i);
+      if(m){
+        date = m[1];
+        m4 = m[2];
+        a_or = m[3];
+        // if trace number starts with letters (DWA...) allow that too
+        trace = m[4];
+      } else {
+        // fallback parse: T + 6 digits + rest
+        const m2 = trace.match(/^T(\d{6})(.+)$/i);
+        if(m2){
+          date = m2[1];
+          const rest = m2[2];
+          // attempt to split rest into 4M (4chars), A/@ (next single char), then remainder trace
+          const mm = rest.match(/^([A-Z0-9]{3,5})([A@])([A-Z0-9]+)$/i);
+          if(mm){ m4 = mm[1]; a_or = mm[2]; trace = mm[3]; }
+          else {
+            // if starts with letters then digits, try to find digits tail
+            const mm2 = rest.match(/^([A-Z0-9]{3,6})([0-9]{6,})$/i);
+            if(mm2){ m4 = mm2[1]; trace = mm2[2]; }
+            else {
+              // last resort: keep rest as trace
+              trace = rest;
+            }
+          }
+        }
+      }
+    }
+
+    // find possible 'firstFlag' (초도품구분) tokens like single N or Y occurring among tokens
+    for(let t of parts){
+      if(/^[NY]$/i.test(t) && t.length===1) { firstFlag = t; break; }
+    }
+    // find area: last token that looks like letters e.g., DONGWON, SAMMYUNG
+    for(let i=parts.length-1;i>=0;i--){
+      const t=parts[i];
+      if(/^[A-Z][A-Z0-9]{2,}$/i.test(t) && t.length>3){
+        area = t;
+        break;
+      }
+    }
+
+    // Validate rules (inferred from screenshots)
+    // Vendor: 3-5 uppercase alnum
+    const vendor_ok = /^[A-Z0-9]{3,5}$/i.test(vendor);
+    setCell('vendorRes', vendor_ok, vendor);
+
+    // Part: contains 'P' and digits sequence
+    const part_ok = /^P?[0-9A-Z]{4,}$/i.test(part) || /P\d{3,}/i.test(part);
+    setCell('partRes', part_ok, part);
+
+    // seq ok if starts with S and at least 2 chars
+    const seq_ok = /^S[A-Z0-9]{1,6}$/i.test(seq);
+    setCell('seqRes', seq_ok, seq);
+
+    // date: yymmdd 6 digits and valid month/day
+    let date_ok=false;
+    if(/^\d{6}$/.test(date)){
+      const yy = parseInt(date.slice(0,2),10);
+      const mm = parseInt(date.slice(2,4),10);
+      const dd = parseInt(date.slice(4,6),10);
+      if(mm>=1 && mm<=12 && dd>=1 && dd<=31) date_ok = true;
+    }
+    setCell('dateRes', date_ok, date);
+
+    // m4: 3~5 alnum (we expect ~4)
+    const m4_ok = /^[A-Z0-9]{3,5}$/i.test(m4);
+    setCell('m4Res', m4_ok, m4);
+
+    // a or @
+    const a_ok = /^[A@]$/.test(a_or);
+    setCell('aRes', a_ok, a_or);
+
+    // trace number length >=7 (allow letters prefix)
+    const trace_ok = trace && trace.length>=7;
+    setCell('traceRes', trace_ok, trace);
+
+    // firstFlag N or Y or empty allowed
+    const first_ok = firstFlag ? /^[NY]$/i.test(firstFlag) : true;
+    setCell('firstRes', first_ok, firstFlag);
+
+    // area ok if length >=3 and letters
+    const area_ok = area ? /^[A-Z][A-Z0-9]{2,}$/i.test(area) : false;
+    setCell('areaRes', area_ok, area);
+
+    // trailer ok if EOT or '#' or 'EOT' word detected
+    const trailer_ok = (raw.indexOf('\x04')>=0) || /EOT|#/.test(raw);
+    setCell('trailRes', trailer_ok, trailer_ok ? 'present' : 'missing');
+
+    // show tokens as debug (already set)
+
+    // Return parsed object for potential further use
+    return {
+      header_ok, vendor, vendor_ok, part, part_ok, seq, seq_ok,
+      date, date_ok, m4, m4_ok, a_or, a_ok, trace, trace_ok,
+      firstFlag, first_ok, area, area_ok, trailer_ok
+    };
+  }
+
+  function printableRepresentation(s){
+    if(!s) return '';
+    // show visible markers for RS/GS/EOT
+    return s.replace(/\x1E/g,'<RS>').replace(/\x1D/g,'<GS>').replace(/\x04/g,'<EOT>');
+  }
+
+  // ZXing decode setup
+  const codeReader = new ZXing.BrowserMultiFormatReader();
+  let stream = null;
+  let decoding = false;
+
+  startBtn.addEventListener('click', async ()=>{
+    if(decoding) return;
+    try{
+      decoding = true;
+      // request camera (prefer environment)
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } }, audio:false
+      });
+      video.srcObject = stream;
+      await video.play();
+
+      // continuously try decode every 600ms
+      decodeLoop();
+    }catch(err){
+      alert('카메라 접근 실패: ' + err.message + '\n(파일 업로드를 사용해 보세요.)');
+      decoding = false;
+    }
+  });
+
+  async function decodeLoop(){
+    if(!decoding) return;
+    try{
+      const result = await codeReader.decodeOnceFromVideoElement(video);
+      if(result && result.text){
+        // stop after successful decode
+        // show raw and parse
+        parseAndValidate(result.text);
+        // keep camera running but pause decoding for 2s
+        await new Promise(r=>setTimeout(r, 1200));
+      }
+    }catch(e){
+      // ignore decode errors (no code in frame)
+    }
+    if(decoding) setTimeout(decodeLoop, 400);
+  }
+
+  stopBtn.addEventListener('click', ()=>{
+    decoding = false;
+    if(stream){
+      stream.getTracks().forEach(t=>t.stop());
+      stream = null;
+    }
+    video.pause();
+    video.srcObject = null;
+  });
+
+  fileInput.addEventListener('change', (ev)=>{
+    const f = ev.target.files[0];
+    if(!f) return;
+    const reader = new FileReader();
+    reader.onload = function(e){
+      const img = new Image();
+      img.onload = async function(){
+        // use ZXing to decode from image
+        try{
+          const luminanceSource = await ZXing.HTMLCanvasElementLuminanceSource.fromImage(img);
+          const binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
+          const hints = new Map();
+          // Allow DataMatrix + other 2D formats
+          const result = codeReader.decode(binaryBitmap, hints);
+          if(result && result.text){
+            parseAndValidate(result.text);
+          } else {
+            // fallback: try to read text via manual OCR? (not implemented)
+            alert('이미지에서 코드를 디코딩하지 못했습니다.');
+          }
+        }catch(err){
+          // fallback simpler approach: try decodeOnceFromVideoDevice with data URL not available; instead try using decodeFromImageElement
+          try{
+            const res = await codeReader.decodeFromImage(img);
+            if(res && res.text) parseAndValidate(res.text);
+          }catch(e2){
+            alert('이미지 디코딩 실패: ' + e2.message);
+          }
+        }
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(f);
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', ()=>{
+    rawText.innerText = '(스캔 또는 업로드 후 결과가 여기에 표시됩니다)';
+    tokensEl.innerText = '';
+    ['hdr','vendor','part','seq','date','m4','a','trace','first','area','trail'].forEach(k=>{
+      const rid = k+'Res'; document.getElementById(rid).innerHTML='';
+      const vid = k+'Val'; if(document.getElementById(vid)) document.getElementById(vid).innerText='';
+    });
+  });
+
+  // expose parse function to console for debugging
+  window._parseAndValidate = parseAndValidate;
+
+})();
 </script>
 </body>
 </html>
