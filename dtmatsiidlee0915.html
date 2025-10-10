@@ -29,6 +29,18 @@
   .scan-overlay{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;justify-content:center;align-items:center;pointer-events:none}
   .scan-frame{width:70%;height:70%;border:2px solid #00ff00;border-radius:8px;box-shadow:0 0 0 1000px rgba(0,0,0,0.5)}
   .status{text-align:center;color:#fff;margin-top:10px;font-weight:bold}
+  
+  /* 탭 스타일 */
+  .tabs-container {margin-top: 16px;}
+  .tabs-header {display: flex; border-bottom: 1px solid #e0e0e0; overflow-x: auto;}
+  .tab-button {padding: 10px 16px; background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap;}
+  .tab-button.active {border-bottom-color: #1565c0; color: #1565c0; font-weight: 600;}
+  .tab-content {display: none; padding: 16px 0;}
+  .tab-content.active {display: block;}
+  .token-info {margin-bottom: 12px;}
+  .token-field {margin-bottom: 8px; display: flex;}
+  .token-label {font-weight: 600; min-width: 120px;}
+  .token-value {flex: 1; word-break: break-all;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js"></script>
 </head>
@@ -59,6 +71,7 @@
 
     <div class="hint">참고: ANSI / ISO 15434 스타일의 구분자( RS=ASCII30, GS=ASCII29, EOT=ASCII4 )와 일반문자 '#', 'EOT' 등 여러 표현을 허용하여 인식합니다.</div>
 
+    <!-- 요약 테이블 -->
     <table id="tableParsed">
       <thead><tr><th>항목</th><th>결과</th><th>값</th></tr></thead>
       <tbody>
@@ -76,23 +89,30 @@
       </tbody>
     </table>
 
-    <div style="margin-top:10px"><strong>토큰 목록 (GS 분리):</strong>
-      <pre id="tokens" class="raw"></pre>
+    <!-- 토큰 탭 섹션 -->
+    <div class="tabs-container">
+      <div><strong>토큰 상세 분석:</strong></div>
+      <div class="tabs-header" id="tabsHeader">
+        <!-- 탭 버튼들이 동적으로 추가될 곳 -->
+      </div>
+      <div class="tab-contents" id="tabContents">
+        <!-- 탭 내용들이 동적으로 추가될 곳 -->
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-// UPDATED BASE CODE - iPhone Safari 호환 DataMatrix 검증기
-// decodeFromVideoDevice 방식으로 변경하여 스캔 성능 향상
+// UPDATED BASE CODE - 토큰 탭 기능 추가
 (function(){
   const video = document.getElementById('video');
   const startBtn = document.getElementById('startBtn');
   const stopBtn = document.getElementById('stopBtn');
   const fileInput = document.getElementById('fileInput');
   const rawText = document.getElementById('rawText');
-  const tokensEl = document.getElementById('tokens');
   const statusEl = document.getElementById('status');
+  const tabsHeader = document.getElementById('tabsHeader');
+  const tabContents = document.getElementById('tabContents');
   
   const codeReader = new ZXing.BrowserMultiFormatReader();
   let isScanning = false;
@@ -111,6 +131,138 @@
 
   function updateStatus(message) {
     statusEl.textContent = message;
+  }
+
+  // 탭 전환 함수
+  function switchTab(tabIndex) {
+    // 모든 탭 버튼 비활성화
+    const tabButtons = tabsHeader.querySelectorAll('.tab-button');
+    tabButtons.forEach(button => button.classList.remove('active'));
+    
+    // 모든 탭 내용 숨기기
+    const tabContentElements = tabContents.querySelectorAll('.tab-content');
+    tabContentElements.forEach(content => content.classList.remove('active'));
+    
+    // 선택한 탭 활성화
+    tabButtons[tabIndex].classList.add('active');
+    tabContentElements[tabIndex].classList.add('active');
+  }
+
+  // 토큰 탭 생성 함수
+  function createTokenTabs(tokens) {
+    // 기존 탭 내용 초기화
+    tabsHeader.innerHTML = '';
+    tabContents.innerHTML = '';
+    
+    if (!tokens || tokens.length === 0) {
+      return;
+    }
+    
+    // 각 토큰에 대한 탭 생성
+    tokens.forEach((token, index) => {
+      // 탭 버튼 생성
+      const tabButton = document.createElement('button');
+      tabButton.className = `tab-button ${index === 0 ? 'active' : ''}`;
+      tabButton.textContent = `토큰 ${index + 1}`;
+      tabButton.addEventListener('click', () => switchTab(index));
+      tabsHeader.appendChild(tabButton);
+      
+      // 탭 내용 생성
+      const tabContent = document.createElement('div');
+      tabContent.className = `tab-content ${index === 0 ? 'active' : ''}`;
+      tabContent.id = `token-${index}`;
+      
+      // 토큰 정보 추가
+      const tokenInfo = document.createElement('div');
+      tokenInfo.className = 'token-info';
+      
+      // 토큰 길이
+      const lengthField = document.createElement('div');
+      lengthField.className = 'token-field';
+      lengthField.innerHTML = `<span class="token-label">길이:</span> <span class="token-value">${token.length} 문자</span>`;
+      tokenInfo.appendChild(lengthField);
+      
+      // 토큰 내용
+      const contentField = document.createElement('div');
+      contentField.className = 'token-field';
+      contentField.innerHTML = `<span class="token-label">내용:</span> <span class="token-value">${escapeHtml(token)}</span>`;
+      tokenInfo.appendChild(contentField);
+      
+      // 토큰 유형 분석
+      const typeField = document.createElement('div');
+      typeField.className = 'token-field';
+      const tokenType = analyzeTokenType(token, index);
+      typeField.innerHTML = `<span class="token-label">유형:</span> <span class="token-value">${tokenType}</span>`;
+      tokenInfo.appendChild(typeField);
+      
+      // 토큰 검증 결과
+      const validationField = document.createElement('div');
+      validationField.className = 'token-field';
+      const validationResult = validateToken(token, index);
+      validationField.innerHTML = `<span class="token-label">검증:</span> <span class="token-value ${validationResult.isValid ? 'ok' : 'ng'}">${validationResult.message}</span>`;
+      tokenInfo.appendChild(validationField);
+      
+      tabContent.appendChild(tokenInfo);
+      tabContents.appendChild(tabContent);
+    });
+  }
+
+  // 토큰 유형 분석 함수
+  function analyzeTokenType(token, index) {
+    if (index === 0 && token.startsWith('[)>')) {
+      return '헤더 (Header)';
+    }
+    if (token.startsWith('V') && /^V[A-Z0-9]{2,}$/i.test(token)) {
+      return '업체 코드 (Vendor Code)';
+    }
+    if (token.startsWith('P') && /^P[0-9A-Z]+/i.test(token)) {
+      return '부품 번호 (Part Number)';
+    }
+    if (token.startsWith('S') && /^S[A-Z0-9]{1,6}$/i.test(token)) {
+      return '서열 코드 (Sequence Code)';
+    }
+    if (token.startsWith('T') && /^T\d{6}/.test(token)) {
+      return '추적 코드 (Trace Code)';
+    }
+    if (token === 'N' || token === 'Y') {
+      return '초도품 구분 (First Item Flag)';
+    }
+    if (/^[A-Z][A-Z0-9]{2,}$/i.test(token) && token.length > 3) {
+      return '업체 영역 (Company Area)';
+    }
+    if (token === '\x04' || token === 'EOT' || token === '#') {
+      return '트레일러 (Trailer)';
+    }
+    
+    return '일반 데이터 (General Data)';
+  }
+
+  // 토큰 검증 함수
+  function validateToken(token, index) {
+    if (index === 0 && !token.startsWith('[)>')) {
+      return { isValid: false, message: '헤더 형식이 올바르지 않습니다' };
+    }
+    if (token.startsWith('V') && !/^V[A-Z0-9]{2,}$/i.test(token)) {
+      return { isValid: false, message: '업체 코드 형식이 올바르지 않습니다' };
+    }
+    if (token.startsWith('P') && !/^P[0-9A-Z]+/i.test(token)) {
+      return { isValid: false, message: '부품 번호 형식이 올바르지 않습니다' };
+    }
+    if (token.startsWith('S') && !/^S[A-Z0-9]{1,6}$/i.test(token)) {
+      return { isValid: false, message: '서열 코드 형식이 올바르지 않습니다' };
+    }
+    if (token.startsWith('T') && !/^T\d{6}/.test(token)) {
+      return { isValid: false, message: '추적 코드 형식이 올바르지 않습니다' };
+    }
+    
+    return { isValid: true, message: '형식이 올바릅니다' };
+  }
+
+  // HTML 이스케이프 함수
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   // 카메라 시작 - decodeFromVideoDevice 방식으로 변경
@@ -226,7 +378,7 @@
     reader.readAsDataURL(file);
   });
 
-  // 데이터 파싱 및 검증 함수들 (기존 base 코드 유지)
+  // 데이터 파싱 및 검증 함수들
   function normalizeControls(s){
     if(!s) return '';
     s = s.replace(/\\r\\n/g,'').replace(/\\r/g,'').replace(/\\n/g,'');
@@ -252,6 +404,10 @@
 
     rawText.innerText = printableRepresentation(original);
 
+    // 토큰 분리 및 탭 생성
+    const tokens = splitTokens(raw);
+    createTokenTabs(tokens);
+
     let header_ok = false, header_val='';
     const RS = '\x1E';
     if(raw.indexOf('[)>') >= 0 && raw.indexOf(RS+'06') >= 0) {
@@ -264,9 +420,6 @@
       }
     }
     setCell('hdrRes', header_ok, header_val);
-
-    const tokens = splitTokens(raw);
-    tokensEl.innerText = JSON.stringify(tokens, null, 2);
 
     ['vendor','part','seq','date','m4','a','trace','first','area','trail'].forEach(k=>{
       setCell(k+'Res', null, '');
@@ -403,7 +556,8 @@
   // 초기화 버튼
   document.getElementById('clearBtn').addEventListener('click', ()=>{
     rawText.innerText = '(스캔 또는 업로드 후 결과가 여기에 표시됩니다)';
-    tokensEl.innerText = '';
+    tabsHeader.innerHTML = '';
+    tabContents.innerHTML = '';
     ['hdr','vendor','part','seq','date','m4','a','trace','first','area','trail'].forEach(k=>{
       const rid = k+'Res'; document.getElementById(rid).innerHTML='';
       const vid = k+'Val'; if(document.getElementById(vid)) document.getElementById(vid).innerText='';
