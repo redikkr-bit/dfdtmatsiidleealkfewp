@@ -1,5 +1,5 @@
 /**********************************************
-*   index.js (간소화된 버전)
+*   index.js (카메라 시작 문제 해결 버전)
 **********************************************/
 
 console.log("index.js 로드 시작");
@@ -29,7 +29,7 @@ $(document).ready(function() {
     // SCAN 버튼 이벤트 바인딩
     $('#btnScan').on('click', function(e) {
         e.preventDefault();
-        console.log("SCAN 버튼 클릭 - jQuery 이벤트");
+        console.log("SCAN 버튼 클릭");
         
         if (!_isScanning) {
             startScan();
@@ -44,7 +44,7 @@ $(document).ready(function() {
 });
 
 /* ============================================================
- *  스캔 시작
+ *  스캔 시작 (카메라 문제 해결 버전)
  * ============================================================ */
 async function startScan() {
     console.log("startScan() 실행");
@@ -74,29 +74,91 @@ async function startScan() {
         btn.disabled = true;
         btn.textContent = "카메라 권한 요청 중...";
 
-        // 카메라 스트림 요청
-        _currentStream = await navigator.mediaDevices.getUserMedia({
-            video: { 
-                facingMode: { ideal: "environment" }
+        // iOS 호환성을 위한 카메라 설정
+        const constraints = {
+            video: {
+                facingMode: { ideal: "environment" },
+                // iOS 호환성을 위한 추가 설정
+                width: { ideal: 1280, max: 1920 },
+                height: { ideal: 720, max: 1080 },
+                frameRate: { ideal: 30 }
             },
             audio: false
+        };
+
+        console.log("카메라 제약 조건:", constraints);
+
+        // 카메라 스트림 요청
+        _currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+        console.log("카메라 스트림 얻음, 트랙 수:", _currentStream.getVideoTracks().length);
+
+        // 비디오 요소 준비
+        video.srcObject = _currentStream;
+        
+        // 비디오 메타데이터 로드 대기
+        await new Promise((resolve) => {
+            video.onloadedmetadata = () => {
+                console.log("비디오 메타데이터 로드됨");
+                resolve();
+            };
+            // 타임아웃 설정
+            setTimeout(resolve, 3000);
         });
 
-        // 비디오 설정
-        video.srcObject = _currentStream;
-        await video.play();
+        // 비디오 재생 시도 (iOS 호환성 개선)
+        try {
+            await video.play();
+            console.log("비디오 재생 성공");
+        } catch (playError) {
+            console.warn("비디오 자동 재생 실패:", playError);
+            // iOS에서는 사용자 상호작용이 필요할 수 있음
+        }
 
         // UI 업데이트
         container.style.display = "flex";
         _isScanning = true;
         btn.textContent = "스캔 중... (탭하면 중지)";
 
+        // ZXing 리더 초기화 전에 약간의 지연 (WASM 초기화 시간)
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         // ZXing 리더 초기화
         _codeReader = new ZXing.BrowserMultiFormatReader();
+        console.log("ZXing 리더 생성됨");
+
+        // 사용 가능한 카메라 장치 찾기
+        let deviceId = null;
+        try {
+            const devices = await _codeReader.listVideoInputDevices();
+            console.log("사용 가능한 카메라 장치:", devices);
+            
+            if (devices && devices.length > 0) {
+                // 후면 카메라 찾기
+                const backCamera = devices.find(device => 
+                    device.label.toLowerCase().includes('back') || 
+                    device.label.toLowerCase().includes('rear') ||
+                    device.label.toLowerCase().includes('environment')
+                );
+                
+                if (backCamera) {
+                    deviceId = backCamera.deviceId;
+                    console.log("후면 카메라 선택:", backCamera.label);
+                } else {
+                    deviceId = devices[0].deviceId;
+                    console.log("기본 카메라 선택:", devices[0].label);
+                }
+            }
+        } catch (deviceError) {
+            console.warn("카메라 장치 목록 조회 실패:", deviceError);
+            deviceId = null; // 기본 카메라 사용
+        }
+
+        console.log("최종 선택된 카메라 ID:", deviceId);
 
         // 디코딩 시작
-        _codeReader.decodeFromVideoDevice(null, video, (result, err) => {
-            if (result && result.text) {
+        console.log("바코드 디코딩 시작...");
+        _codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
+            if (result) {
                 console.log("스캔 성공:", result.text);
                 stopScan(false);
                 
@@ -109,18 +171,33 @@ async function startScan() {
                     setBarcodeSet();
                 }
             }
+            if (err) {
+                // NotFoundError는 정상적인 상황 (스캔할 바코드가 없을 때)
+                if (!(err.name === 'NotFoundException')) {
+                    console.warn("디코딩 에러:", err);
+                }
+            }
         });
 
+        console.log("ZXing 디코딩이 시작되었습니다");
+
     } catch (err) {
-        console.error("스캔 에러:", err);
+        console.error("카메라 시작 중 에러:", err);
+        
         let errorMsg = "카메라 시작 실패: ";
         
         if (err.name === 'NotAllowedError') {
-            errorMsg = "카메라 권한이 거부되었습니다.";
+            errorMsg = "카메라 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 확인해주세요.";
         } else if (err.name === 'NotFoundError') {
-            errorMsg = "카메라를 찾을 수 없습니다.";
+            errorMsg = "카메라를 찾을 수 없습니다. 기기에 카메라가 있는지 확인해주세요.";
+        } else if (err.name === 'NotSupportedError') {
+            errorMsg = "카메라 기능을 지원하지 않는 브라우저입니다.";
+        } else if (err.name === 'NotReadableError') {
+            errorMsg = "카메라가 다른 앱에서 사용 중이거나 접근할 수 없습니다.";
+        } else if (err.name === 'OverconstrainedError') {
+            errorMsg = "요청한 카메라 설정을 지원하지 않습니다. 기본 카메라로 시도해주세요.";
         } else {
-            errorMsg += err.message;
+            errorMsg += err.message || "알 수 없는 오류";
         }
         
         alert(errorMsg);
@@ -144,6 +221,7 @@ function stopScan(hide = true) {
         try {
             _codeReader.reset();
             _codeReader = null;
+            console.log("ZXing 리더 정리됨");
         } catch (e) {
             console.warn("ZXing 정리 에러:", e);
         }
@@ -152,8 +230,12 @@ function stopScan(hide = true) {
     // 카메라 스트림 정리
     if (_currentStream) {
         try {
-            _currentStream.getTracks().forEach(track => track.stop());
+            _currentStream.getTracks().forEach(track => {
+                console.log("트랙 정지:", track.kind, track.label);
+                track.stop();
+            });
             _currentStream = null;
+            console.log("카메라 스트림 정리됨");
         } catch (e) {
             console.warn("스트림 정리 에러:", e);
         }
@@ -179,11 +261,11 @@ function stopScan(hide = true) {
         btn.textContent = "SCAN";
         btn.disabled = false;
     }
+    
+    console.log("스캔 완전히 중지됨");
 }
 
-/* ============================================================
- *  DataAnalyzer 연동 함수
- * ============================================================ */
+// DataAnalyzer 연동 함수들 (이전과 동일)
 function setBarcodeSet() {
     if (!dataAnalyzer) return;
     
@@ -230,6 +312,6 @@ function setAllClear() {
     });
 }
 
-// 글로벌 함수로 노출 (인라인 이벤트용)
+// 글로벌 함수로 노출
 window.startScan = startScan;
 window.stopScan = stopScan;
