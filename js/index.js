@@ -1,5 +1,5 @@
 /**********************************************
-*   index.js (강화된 버전)
+*   index.js (원본 레이아웃 호환 버전)
 **********************************************/
 
 // 전역 변수
@@ -28,7 +28,7 @@ $(function () {
         return;
     }
 
-    // SCAN 버튼 이벤트 바인딩
+    // SCAN 버튼 이벤트 바인딩 (원본 버튼 ID 사용)
     var $btnScan = $("#btnScan");
     if ($btnScan.length === 0) {
         console.error("SCAN 버튼을 찾을 수 없음!");
@@ -46,12 +46,23 @@ $(function () {
         }
     });
 
+    // 다른 버튼들 기본 동작 방지 (필요시)
+    $("#btnHistory").off("click").on("click", function(e) {
+        e.preventDefault();
+        alert("히스토리 기능은 현재 사용할 수 없습니다");
+    });
+    
+    $("#btnInput").off("click").on("click", function(e) {
+        e.preventDefault();
+        alert("입력 기능은 현재 사용할 수 없습니다");
+    });
+
     $("#txtResult").text("준비 완료 - SCAN 버튼을 터치하세요");
     console.log("버튼 이벤트 바인딩 완료");
 });
 
 /* ============================================================
- *  스캔 시작 (강화된 버전)
+ *  스캔 시작
  * ============================================================ */
 async function startScan() {
     console.log("startScan() 함수 실행");
@@ -109,7 +120,6 @@ async function startScan() {
             console.log("비디오 재생 성공");
         } catch (playError) {
             console.warn("비디오 자동 재생 실패:", playError);
-            // iOS에서는 자동 재생이 제한될 수 있음
         }
 
         // UI 업데이트
@@ -129,12 +139,6 @@ async function startScan() {
             
             const backCamera = devices.find(d => /back|rear|environment|후면/i.test(d.label));
             deviceId = backCamera ? backCamera.deviceId : (devices[0] ? devices[0].deviceId : null);
-            
-            if (backCamera) {
-                console.log("후면 카메라 선택됨");
-            } else if (devices[0]) {
-                console.log("기본 카메라 선택됨");
-            }
         } catch (e) {
             console.warn("카메라 목록 조회 실패:", e);
             deviceId = null;
@@ -157,10 +161,6 @@ async function startScan() {
                 } else {
                     $("#txtResult").html("스캔 성공: " + result.text + "<br>DataAnalyzer를 사용할 수 없음");
                 }
-            }
-            
-            if (err && !(err instanceof ZXing.NotFoundException)) {
-                console.warn("디코딩 에러:", err);
             }
         });
 
@@ -186,7 +186,7 @@ async function startScan() {
 }
 
 /* ============================================================
- *  스캔 중지 (강화된 버전)
+ *  스캔 중지
  * ============================================================ */
 function stopScan(hide = true) {
     console.log("stopScan() 호출");
@@ -196,7 +196,6 @@ function stopScan(hide = true) {
         try {
             _codeReader.reset();
             _codeReader = null;
-            console.log("ZXing 리더 정리됨");
         } catch (e) {
             console.warn("ZXing 정리 중 에러:", e);
         }
@@ -213,7 +212,6 @@ function stopScan(hide = true) {
                 }
             });
             _currentStream = null;
-            console.log("카메라 스트림 정리됨");
         } catch (e) {
             console.warn("스트림 정리 중 에러:", e);
         }
@@ -230,16 +228,16 @@ function stopScan(hide = true) {
         const container = document.getElementById("cameraContainer");
         if (container) {
             container.style.display = "none";
-            console.log("카메라 컨테이너 숨김");
         }
     }
 
     _isScanning = false;
     $("#btnScan").text("SCAN");
-    console.log("스캔 중지 완료");
 }
 
-// 나머지 함수들은 동일하게 유지
+/* ============================================================
+ *  DataAnalyzer 연동 함수들 (원본 호환)
+ * ============================================================ */
 function setBarcodeSet() {
     if (!dataAnalyzer) {
         console.error("DataAnalyzer가 초기화되지 않음");
@@ -268,13 +266,27 @@ function setBarcodeResultDetail() {
         }
     });
 
-    if ($("#result13").html() == "") { $("#tr13").hide(); } else { $("#tr13").show(); }
-    if ($("#result30").html() == "" && $("#result31").html() == "") {
-        $("#tr30").hide(); $("#tr31").hide();
-    } else {
-        $("#tr30").show(); $("#tr31").show();
+    // 원본 레이아웃에 맞게 행 표시/숨김 처리
+    if ($("#result13").html() == "") { 
+        $("#tr13").hide(); 
+    } else { 
+        $("#tr13").show(); 
     }
-    if ($("#result40").html() == "") $("#tr40").hide(); else $("#tr40").show();
+    
+    if ($("#result30").html() == "" && $("#result31").html() == "") {
+        $("#tr30").hide(); 
+        $("#tr31").hide();
+    } else {
+        $("#tr30").show(); 
+        $("#tr31").show();
+    }
+    
+    if ($("#result40").html() == "") {
+        $("#tr40").hide(); 
+    } else { 
+        $("#tr40").show(); 
+    }
+    
     return okng;
 }
 
