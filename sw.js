@@ -1,16 +1,11 @@
-const CACHE_NAME = 'barcode-checker-v1';
-const FILES = [
-  './index.html',
-  './css/index.css',
-  './js/index.js',
-  './js/DataAnalyzer.js',
-  './js/zxing.min.js'
-];
-
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(FILES)));
+  e.waitUntil(caches.open('barcode-checker-v1').then(cache => {
+    return cache.addAll(['./', './index.html', './css/index.css', './js/index.js', './js/DataAnalyzer.js']);
+  }));
 });
 
 self.addEventListener('fetch', e => {
-  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+  e.respondWith(
+    caches.match(e.request).then(response => response || fetch(e.request))
+  );
 });
