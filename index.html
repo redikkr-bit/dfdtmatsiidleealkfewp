@@ -12,9 +12,6 @@
     <!-- CSS -->
     <link rel="stylesheet" href="css/index.css">
 
-    <!-- ZXing 라이브러리 (CDN) -->
-    <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
-
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
 
@@ -64,24 +61,12 @@
                 <th style="width:40px;">결과</th>
                 <th>Data</th>
             </tr>
-            <tr>
-                <th colspan=2>Header</th>
-                <td class="ct" id="result00"></td>
-                <td id="data00"></td>
-            </tr>
-            <tr>
-                <th rowspan=4 style="width:40px;" id="title_m10">사양<br>정보</th>
-                <th>업체코드</th>
-                <td class="ct" id="result10"></td>
-                <td id="data10"></td>
-            </tr>
+            <tr><th colspan=2>Header</th><td class="ct" id="result00"></td><td id="data00"></td></tr>
+            <tr><th rowspan=4 style="width:40px;" id="title_m10">사양<br>정보</th><th>업체코드</th><td class="ct" id="result10"></td><td id="data10"></td></tr>
             <tr><th>부품번호</th><td class="ct" id="result11"></td><td id="data11"></td></tr>
             <tr><th>서열코드</th><td class="ct" id="result12"></td><td id="data12"></td></tr>
             <tr id="tr13"><th>EO번호</th><td class="ct" id="result13"></td><td id="data13"></td></tr>
-            <tr>
-                <th rowspan=4>추적<br>정보</th>
-                <th>생산일자</th><td class="ct" id="result20"></td><td id="data20"></td>
-            </tr>
+            <tr><th rowspan=4>추적<br>정보</th><th>생산일자</th><td class="ct" id="result20"></td><td id="data20"></td></tr>
             <tr><th>부품4M</th><td class="ct" id="result21"></td><td id="data21"></td></tr>
             <tr><th>A or @</th><td class="ct" id="result22"></td><td id="data22"></td></tr>
             <tr><th>추적번호(7~)</th><td class="ct" id="result23"></td><td id="data23"></td></tr>
@@ -92,10 +77,6 @@
         </table>
     </div>
 
-    <!-- 탭 버튼 영역 (숨김) -->
-    <div class="tabButtonArea" style="display:none"></div>
-
-    <!-- 하단 버튼 -->
     <div class="bottomArea">
         <button id="btnScan">SCAN</button>
     </div>
@@ -106,8 +87,9 @@
         <button id="closeCamBtn" onclick="stopScan()">✕ 닫기</button>
     </div>
 
-    <!-- 스크립트 -->
+    <!-- Script 로드 순서 중요 -->
     <script src="js/jquery-1.12.4.min.js"></script>
+    <script src="js/zxing.min.js"></script>
     <script src="js/DataAnalyzer.js"></script>
     <script src="js/index.js"></script>
 
