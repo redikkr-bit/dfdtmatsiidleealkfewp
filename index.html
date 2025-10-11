@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Barcode Checker</title>
+    <link rel="stylesheet" type="text/css" href="css/index.css">
+    <link rel="manifest" href="manifest.json">
+    <script>
+        // iOS 홈화면 추가 시 전체화면 동작
+        if (window.navigator.standalone) {
+            document.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
+        }
+    </script>
+</head>
+<body>
+    <div class="title">바코드내용</div>
+    <div id="txtResult" class="memo"></div>
+
+    <div id="resultTable">
+        <div class="title">H/KMC부품 2D 바코드 표준</div>
+        <table>
+            <tr>
+                <th colspan=2>구분</th><th style="width:40px;">결과</th><th>Data</th>
+            </tr>
+            <tr><th colspan=2>Header</th><td class="ct" id="result00"></td><td id="data00"></td></tr>
+            <tr><th rowspan=4 style="width:40px;">사양<br>정보</th><th style="width:80px;">업체코드</th><td class="ct" id="result10"></td><td id="data10"></td></tr>
+            <tr><th>부품번호</th><td class="ct" id="result11"></td><td id="data11"></td></tr>
+            <tr><th>서열코드</th><td class="ct" id="result12"></td><td id="data12"></td></tr>
+            <tr id="tr13"><th>EO번호</th><td class="ct" id="result13"></td><td id="data13"></td></tr>
+            <tr><th rowspan=4>추적<br>정보</th><th>생산일자</th><td class="ct" id="result20"></td><td id="data20"></td></tr>
+            <tr><th>부품4M</th><td class="ct" id="result21"></td><td id="data21"></td></tr>
+            <tr><th>A or @</th><td class="ct" id="result22"></td><td id="data22"></td></tr>
+            <tr><th>추적번호(7~)</th><td class="ct" id="result23"></td><td id="data23"></td></tr>
+            <tr id="tr30"><th rowspan=2>부가<br>정보</th><th>특이정보</th><td class="ct" id="result30"></td><td id="data30"></td></tr>
+            <tr id="tr31"><th>초도품구분</th><td class="ct" id="result31"></td><td id="data31"></td></tr>
+            <tr id="tr40"><th>기타</th><th>업체영역</th><td class="ct" id="result40"></td><td id="data40"></td></tr>
+            <tr><th colspan=2>Trailer</th><td class="ct" id="result50"></td><td id="data50"></td></tr>
+        </table>
+    </div>
+
+    <div class="bottomArea">
+        <button id="btnScan">SCAN</button>
+    </div>
+
+    <!-- 카메라 미리보기 -->
+    <div id="cameraContainer" style="display:none;">
+        <video id="cameraPreview" autoplay playsinline style="width:100%;"></video>
+    </div>
+
+    <script src="js/jquery-1.12.4.min.js"></script>
+    <script src="js/DataAnalyzer.js"></script>
+    <script src="js/index.js"></script>
+    <script src="js/zxing.min.js"></script>
+</body>
+</html>
