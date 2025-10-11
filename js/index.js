@@ -1,5 +1,5 @@
 /**********************************************
-*   index.js (카메라 시작 문제 해결 버전)
+*   index.js (후면 카메라 고정 버전)
 **********************************************/
 
 console.log("index.js 로드 시작");
@@ -44,7 +44,7 @@ $(document).ready(function() {
 });
 
 /* ============================================================
- *  스캔 시작 (카메라 문제 해결 버전)
+ *  스캔 시작 (후면 카메라 고정)
  * ============================================================ */
 async function startScan() {
     console.log("startScan() 실행");
@@ -74,23 +74,46 @@ async function startScan() {
         btn.disabled = true;
         btn.textContent = "카메라 권한 요청 중...";
 
-        // iOS 호환성을 위한 카메라 설정
+        // 후면 카메라 고정을 위한 강력한 설정
         const constraints = {
             video: {
-                facingMode: { ideal: "environment" },
-                // iOS 호환성을 위한 추가 설정
-                width: { ideal: 1280, max: 1920 },
-                height: { ideal: 720, max: 1080 },
-                frameRate: { ideal: 30 }
+                // 후면 카메라 강제 지정
+                facingMode: { exact: "environment" }, // 'exact'로 강제
+                // 해상도 설정으로 안정성 향상
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
             },
             audio: false
         };
 
-        console.log("카메라 제약 조건:", constraints);
+        console.log("카메라 제약 조건 (후면 고정):", constraints);
 
-        // 카메라 스트림 요청
-        _currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-        console.log("카메라 스트림 얻음, 트랙 수:", _currentStream.getVideoTracks().length);
+        // 카메라 스트림 요청 - 후면 카메라 강제
+        try {
+            _currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+            console.log("후면 카메라 스트림 얻음");
+        } catch (backCameraError) {
+            console.warn("후면 카메라 접근 실패, 기본 카메라 시도:", backCameraError);
+            
+            // 후면 카메라 실패 시 기본 카메라로 폴백
+            const fallbackConstraints = {
+                video: true, // 가장 기본적인 설정
+                audio: false
+            };
+            
+            _currentStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+            console.log("기본 카메라 스트림 얻음 (폴백)");
+        }
+
+        console.log("카메라 스트림 트랙 수:", _currentStream.getVideoTracks().length);
+        
+        // 현재 활성화된 카메라 정보 로그
+        const videoTrack = _currentStream.getVideoTracks()[0];
+        if (videoTrack) {
+            const settings = videoTrack.getSettings();
+            console.log("현재 카메라 설정:", settings);
+            console.log("카메라 레이블:", videoTrack.label);
+        }
 
         // 비디오 요소 준비
         video.srcObject = _currentStream;
@@ -101,17 +124,15 @@ async function startScan() {
                 console.log("비디오 메타데이터 로드됨");
                 resolve();
             };
-            // 타임아웃 설정
-            setTimeout(resolve, 3000);
+            setTimeout(resolve, 2000); // 타임아웃 2초
         });
 
-        // 비디오 재생 시도 (iOS 호환성 개선)
+        // 비디오 재생 시도
         try {
             await video.play();
             console.log("비디오 재생 성공");
         } catch (playError) {
             console.warn("비디오 자동 재생 실패:", playError);
-            // iOS에서는 사용자 상호작용이 필요할 수 있음
         }
 
         // UI 업데이트
@@ -119,45 +140,57 @@ async function startScan() {
         _isScanning = true;
         btn.textContent = "스캔 중... (탭하면 중지)";
 
-        // ZXing 리더 초기화 전에 약간의 지연 (WASM 초기화 시간)
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // ZXing 초기화 전 대기
+        await new Promise(resolve => setTimeout(resolve, 300));
 
         // ZXing 리더 초기화
         _codeReader = new ZXing.BrowserMultiFormatReader();
         console.log("ZXing 리더 생성됨");
 
-        // 사용 가능한 카메라 장치 찾기
-        let deviceId = null;
+        // 카메라 장치 선택 - 후면 카메라 우선
+        let selectedDeviceId = null;
         try {
             const devices = await _codeReader.listVideoInputDevices();
-            console.log("사용 가능한 카메라 장치:", devices);
+            console.log("사용 가능한 카메라 장치 수:", devices.length);
             
             if (devices && devices.length > 0) {
-                // 후면 카메라 찾기
-                const backCamera = devices.find(device => 
-                    device.label.toLowerCase().includes('back') || 
-                    device.label.toLowerCase().includes('rear') ||
-                    device.label.toLowerCase().includes('environment')
-                );
+                // 후면 카메라 식별 (더 강력한 필터링)
+                const backCameras = devices.filter(device => {
+                    const label = device.label.toLowerCase();
+                    return (
+                        label.includes('back') || 
+                        label.includes('rear') ||
+                        label.includes('environment') ||
+                        label.includes('후면') ||
+                        label.includes('환경') ||
+                        /camera2|1$/.test(label) // Android에서 후면 카메라 ID 패턴
+                    );
+                });
                 
-                if (backCamera) {
-                    deviceId = backCamera.deviceId;
-                    console.log("후면 카메라 선택:", backCamera.label);
+                if (backCameras.length > 0) {
+                    selectedDeviceId = backCameras[0].deviceId;
+                    console.log("후면 카메라 선택됨:", backCameras[0].label);
                 } else {
-                    deviceId = devices[0].deviceId;
-                    console.log("기본 카메라 선택:", devices[0].label);
+                    // 후면 카메라 없으면 첫 번째 장치 사용
+                    selectedDeviceId = devices[0].deviceId;
+                    console.log("후면 카메라 없음, 기본 카메라 사용:", devices[0].label);
                 }
+                
+                // 모든 카메라 정보 로그
+                devices.forEach((device, index) => {
+                    console.log(`카메라 ${index}: ${device.label} (${device.deviceId})`);
+                });
             }
         } catch (deviceError) {
             console.warn("카메라 장치 목록 조회 실패:", deviceError);
-            deviceId = null; // 기본 카메라 사용
+            selectedDeviceId = null;
         }
 
-        console.log("최종 선택된 카메라 ID:", deviceId);
+        console.log("최종 선택된 카메라 ID:", selectedDeviceId);
 
         // 디코딩 시작
         console.log("바코드 디코딩 시작...");
-        _codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
+        _codeReader.decodeFromVideoDevice(selectedDeviceId, video, (result, err) => {
             if (result) {
                 console.log("스캔 성공:", result.text);
                 stopScan(false);
@@ -171,11 +204,8 @@ async function startScan() {
                     setBarcodeSet();
                 }
             }
-            if (err) {
-                // NotFoundError는 정상적인 상황 (스캔할 바코드가 없을 때)
-                if (!(err.name === 'NotFoundException')) {
-                    console.warn("디코딩 에러:", err);
-                }
+            if (err && !(err.name === 'NotFoundException')) {
+                console.warn("디코딩 에러:", err);
             }
         });
 
@@ -195,7 +225,12 @@ async function startScan() {
         } else if (err.name === 'NotReadableError') {
             errorMsg = "카메라가 다른 앱에서 사용 중이거나 접근할 수 없습니다.";
         } else if (err.name === 'OverconstrainedError') {
-            errorMsg = "요청한 카메라 설정을 지원하지 않습니다. 기본 카메라로 시도해주세요.";
+            errorMsg = "후면 카메라를 찾을 수 없습니다. 다른 카메라로 시도합니다.";
+            // 오버컨스트레인 에러 시 기본 카메라로 재시도
+            setTimeout(() => {
+                startScanWithFallback();
+            }, 100);
+            return;
         } else {
             errorMsg += err.message || "알 수 없는 오류";
         }
@@ -207,6 +242,58 @@ async function startScan() {
         if (btn) {
             btn.disabled = false;
         }
+    }
+}
+
+/* ============================================================
+ *  폴백 카메라 시작 (후면 카메라 실패 시)
+ * ============================================================ */
+async function startScanWithFallback() {
+    console.log("폴백 카메라 시작");
+    
+    try {
+        const video = document.getElementById("cameraPreview");
+        const container = document.getElementById("cameraContainer");
+        
+        // 기본 카메라 설정
+        const constraints = {
+            video: true,
+            audio: false
+        };
+        
+        _currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+        console.log("폴백 카메라 스트림 얻음");
+        
+        video.srcObject = _currentStream;
+        container.style.display = "flex";
+        _isScanning = true;
+        
+        await video.play();
+        
+        // ZXing 재설정
+        if (_codeReader) {
+            _codeReader.reset();
+        }
+        _codeReader = new ZXing.BrowserMultiFormatReader();
+        
+        // 기본 카메라로 디코딩 시작
+        _codeReader.decodeFromVideoDevice(null, video, (result, err) => {
+            if (result) {
+                console.log("폴백 카메라 스캔 성공:", result.text);
+                stopScan(false);
+                $('#txtResult').html(result.text.replace(/\r?\n/g, "<br>"));
+                
+                if (dataAnalyzer && typeof dataAnalyzer.setBarcodeData === 'function') {
+                    dataAnalyzer.setBarcodeData(result.text);
+                    setBarcodeSet();
+                }
+            }
+        });
+        
+    } catch (fallbackError) {
+        console.error("폴백 카메라도 실패:", fallbackError);
+        alert("모든 카메라 접근에 실패했습니다.");
+        stopScan(true);
     }
 }
 
