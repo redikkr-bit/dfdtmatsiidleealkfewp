@@ -1,16 +1,18 @@
 <!DOCTYPE html>
 <html lang="ko">
     <head>
-        <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval'; style-src 'self' 'unsafe-inline'; media-src *; img-src 'self' data: content:;">
+        <!-- CSP 수정: CDN 스크립트 허용 -->
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: gap: https://ssl.gstatic.com https://code.jquery.com https://unpkg.com 'unsafe-eval'; script-src 'self' 'unsafe-inline' https://code.jquery.com https://unpkg.com; style-src 'self' 'unsafe-inline'; media-src *; img-src 'self' data: content: https:;">
         <meta name="format-detection" content="telephone=no">
         <meta name="msapplication-tap-highlight" content="no">
         <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
         <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width">
         
-        <!-- PWA 메타태그 추가 -->
+        <!-- PWA 메타태그 -->
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="default">
         <meta name="theme-color" content="#115f97">
+        <meta name="mobile-web-app-capable" content="yes">
         
         <link rel="stylesheet" type="text/css" href="css/index.css">
         
@@ -23,7 +25,7 @@
         <title>Barcode Checker</title>
         
         <style>
-            /* 카메라 스타일 추가 */
+            /* 카메라 스타일 */
             #cameraContainer {
                 display: none;
                 position: fixed;
@@ -52,12 +54,23 @@
                 border-radius: 8px;
                 z-index: 201;
             }
+            
+            /* 다른 버튼 제거를 위한 스타일 */
+            #btnHistory, #btnInput {
+                display: none !important;
+            }
+            
+            /* SCAN 버튼만 전체 너비로 */
+            #btnScan {
+                width: 90% !important;
+                margin: 0 auto;
+                display: block;
+            }
         </style>
     </head>
     <body>
         <div class="title" data-label="label004">바코드내용</div>
-        <div id="txtResult" class="memo">
-        </div>
+        <div id="txtResult" class="memo"></div>
 
         <div id="resultTable">
             <div class="title" data-label="label005">H/KMC부품 2D 바코드 표준</div>
@@ -140,61 +153,52 @@
             </table>
         </div>
         
-        <!-- 탭 버튼 영역 (원본대로 숨김) -->
-        <div class="tabButtonArea" style="display:none">
-            <button id="btnTab01" data-idx="0">Assy</button>
-            <button id="btnTab02" data-idx="1">Sub01</button>
-            <button id="btnTab03" data-idx="2">Sub02</button>
-            <button id="btnTab04" data-idx="3">Sub03</button>
-            <button id="btnTab05" data-idx="4">Sub04</button>
-            <button id="btnTab06" data-idx="5">Sub05</button>
-            <button id="btnTab07" data-idx="6">Sub06</button>
-            <button id="btnTab08" data-idx="7">Sub07</button>
-            <button id="btnTab09" data-idx="8">Sub08</button>
-        </div>
+        <!-- 탭 버튼 영역 숨김 -->
+        <div class="tabButtonArea" style="display:none"></div>
         
-        <!-- 하단 버튼 (원본 구조 유지) -->
+        <!-- 하단 버튼: SCAN 버튼만 표시 -->
         <div class="bottomArea">
-            <button id="btnHistory" data-label="label002"></button>
-            <button id="btnInput" data-label="label033"></button>
-            <button id="btnScan" data-label="label001">SCAN</button>
+            <button id="btnScan">SCAN</button>
         </div>
 
-        <!-- 카메라 미리보기 (스캔 기능용 추가) -->
+        <!-- 카메라 미리보기 -->
         <div id="cameraContainer">
             <video id="cameraPreview" autoplay muted playsinline></video>
-            <button id="closeCamBtn" onclick="stopScan()">✕ 닫기</button>
+            <button id="closeCamBtn">✕ 닫기</button>
         </div>
 
-        <!-- 팝업 레이어 (원본 구조 유지) -->
-        <div class="dim-layer">
-            <div class="dimBg"></div>
-            <div id="popupLayer" class="pop-layer">
-                <div class="pop-container">
-                    <div class="pop-conts">
-                        <div class="title" data-label="label004">바코드내용</div>
-                        <div id="txtResult" class="memo">
-                            <textarea id="txtBarcodeData" style="width:100%;height:200px;"></textarea>
-                        </div>
-                        <div class="bottomArea">
-                            <button id="btnClose" data-label="label026" class="btn-layerClose"></button>
-                            <button id="btnCheck" data-label="label034"></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- 팝업 레이어 숨김 -->
+        <div class="dim-layer" style="display:none;"></div>
 
-        <!-- Script 로드 순서 (CDN으로 변경하여 안정성 확보) -->
-        <script type="text/javascript" src="cordova.js"></script>
+        <!-- Script 로드: CDN 사용, 불필요한 파일 제거 -->
         <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
         <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
-        <script type="text/javascript" src="js/language.js"></script>
-        <script type="text/javascript" src="js/DataAnalyzer.js"></script>
-        <script type="text/javascript" src="js/database.js"></script>
-        <script type="text/javascript" src="js/index.js"></script>
+        <script src="js/DataAnalyzer.js"></script>
+        <script src="js/index.js"></script>
 
         <script>
+            // 간단한 로드 확인
+            window.addEventListener('load', function() {
+                console.log('페이지 로드 완료');
+                console.log('jQuery:', typeof jQuery !== 'undefined');
+                console.log('ZXing:', typeof ZXing !== 'undefined');
+                
+                // SCAN 버튼 직접 이벤트 리스너 추가 (백업)
+                document.getElementById('btnScan').addEventListener('click', function() {
+                    console.log('SCAN 버튼 클릭 (직접 이벤트)');
+                    if (typeof startScan === 'function') {
+                        startScan();
+                    }
+                });
+                
+                // 닫기 버튼 이벤트
+                document.getElementById('closeCamBtn').addEventListener('click', function() {
+                    if (typeof stopScan === 'function') {
+                        stopScan();
+                    }
+                });
+            });
+
             // PWA Service Worker 등록
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('sw.js')
