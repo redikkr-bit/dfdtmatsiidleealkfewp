@@ -1,5 +1,5 @@
 /**********************************************
-*   웹앱용 메인 스크립트 (Cordova → Browser)
+*   Barcode Checker (WebApp Safari 대응)
 **********************************************/
 var dataAnalyzer = new DataAnalyzer();
 
@@ -7,32 +7,54 @@ $(function () {
     $("#btnScan").click(startScan);
 });
 
+/* ============================================================
+ *  SCAN FUNCTION
+ * ============================================================ */
 async function startScan() {
     const video = document.getElementById("cameraPreview");
     const container = document.getElementById("cameraContainer");
-    container.style.display = "block";
 
-    const codeReader = new ZXing.BrowserMultiFormatReader();
     try {
-        const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
-        const selected = devices.length > 1 ? devices[0].deviceId : undefined;
+        // Safari 보안 제한 대응: HTTPS 환경에서만 허용
+        if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+            alert("⚠️ 카메라 기능은 HTTPS 환경에서만 작동합니다.\nGitHub Pages 또는 SSL 서버에서 테스트하세요.");
+            return;
+        }
 
-        await codeReader.decodeFromVideoDevice(selected, video, (result, err) => {
+        // 카메라 접근 권한 요청
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        video.srcObject = stream;
+        container.style.display = "block";
+
+        // Safari 초기 딜레이 (WASM 안정화)
+        await new Promise(resolve => setTimeout(resolve, 700));
+
+        // ZXing 초기화
+        const codeReader = new ZXing.BrowserMultiFormatReader();
+        codeReader.decodeFromVideoDevice(null, video, (result, err) => {
             if (result) {
+                // 스캔 성공
+                stream.getTracks().forEach(track => track.stop());
                 container.style.display = "none";
                 codeReader.reset();
 
-                // 바코드 검증
                 const text = result.text;
+                console.log("✅ Scan Result:", text);
                 dataAnalyzer.setBarcodeData(text);
                 setBarcodeSet();
+
+                alert("✅ DataMatrix 스캔 성공!\n\n" + text);
             }
         });
     } catch (e) {
-        alert("카메라 접근 실패: " + e);
+        console.error("Camera Error:", e);
+        alert("❌ 카메라 접근 실패 또는 권한 거부\n\n" + e.message);
     }
 }
 
+/* ============================================================
+ *  TABLE VIEW LOGIC (원본 코드 유지)
+ * ============================================================ */
 function setTabShowHidden(cnt) {
     $(".tabButtonArea").hide();
     $("body").css("margin-bottom", "104px");
@@ -61,7 +83,7 @@ function setBarcodeResultDetail() {
         }
     });
 
-    // EO번호 행 처리
+    // EO번호 표시 여부
     if ($("#result13").html() == "") {
         $("#title_m10").attr("rowspan", "3");
         $("#tr13").hide();
@@ -70,7 +92,7 @@ function setBarcodeResultDetail() {
         $("#tr13").show();
     }
 
-    // 특이정보 / 초도품구분 처리
+    // 특이정보 / 초도품구분 표시 로직
     if ($("#result30").html() != "" && $("#result31").html() != "") {
         $("#tr30").show();
         $("#tr31").show();
@@ -98,7 +120,7 @@ function setBarcodeResultDetail() {
 }
 
 function setAllClear() {
-    for (let i of ["00","10","11","12","13","20","21","22","23","30","31","40","50"]) {
+    for (let i of ["00", "10", "11", "12", "13", "20", "21", "22", "23", "30", "31", "40", "50"]) {
         $("#result" + i).html("");
         $("#data" + i).html("");
     }
