@@ -1,5 +1,3 @@
-/* 기존 스타일 유지 + 추가 */
-
 body {
     font-family: "Helvetica", "Arial", sans-serif;
     background: #f8f8f8;
@@ -43,15 +41,19 @@ body {
     border: 1px solid #124d77;
 }
 
+/* 테이블 영역 */
 table {
     width: 100%;
     border-collapse: collapse;
     background: #fff;
+    table-layout: fixed;
 }
 th, td {
     border: 1px solid #ccc;
     padding: 6px;
     text-align: left;
+    vertical-align: middle;
+    white-space: nowrap;
 }
 th {
     background: #f0f0f0;
@@ -85,7 +87,7 @@ th {
     border-radius: 8px;
 }
 
-/* 블록별 구분 스타일 */
+/* 블록별 구분 */
 #multiBlockContainer {
     margin-top: 20px;
 }
@@ -102,12 +104,7 @@ th {
     padding: 6px 10px;
 }
 
-/* 제어문자 시각화 */
-.ctrl {
-    background: #eee;
-    color: #333;
-    font-size: 0.8em;
-    border-radius: 3px;
-    padding: 0 2px;
-    margin: 0 1px;
+/* Safari rowspan fix */
+th[rowspan] {
+    vertical-align: middle !important;
 }
