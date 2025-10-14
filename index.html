@@ -46,48 +46,12 @@
             padding: 6px 10px;
             border-radius: 8px;
         }
-        
-        /* 블록 탭 스타일 */
-        .blockTabs {
-            display: flex;
-            gap: 5px;
-            margin-bottom: 10px;
-            flex-wrap: wrap;
-        }
-        .blockTab {
-            padding: 8px 12px;
-            background: #f0f0f0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        .blockTab.active {
-            background: #007dc1;
-            color: white;
-            border-color: #007dc1;
-        }
-        .blockInfo {
-            background: #e8f4ff;
-            padding: 8px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-            font-size: 12px;
-        }
     </style>
 </head>
 
 <body>
     <div class="title">바코드 내용</div>
     <div id="txtResult" class="memo"></div>
-
-    <!-- 블록 탭 영역 (다중 데이터 블록 표시) -->
-    <div id="blockTabsContainer" style="display: none;">
-        <div class="blockInfo" id="blockInfo">
-            다중 데이터 블록이 감지되었습니다. 각 탭을 선택하여 상세 정보를 확인하세요.
-        </div>
-        <div class="blockTabs" id="blockTabs"></div>
-    </div>
 
     <div id="resultTable">
         <div class="title">H/KMC부품 2D 바코드 표준</div>
