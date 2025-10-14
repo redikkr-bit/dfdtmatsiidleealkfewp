@@ -1,5 +1,5 @@
 /**********************************************
-*   index.js (멀티 블록 표시 지원 버전)
+*   index.js (멀티 블록 완전 표시 버전)
 **********************************************/
 
 var dataAnalyzer = null;
@@ -8,15 +8,11 @@ var _currentStream = null;
 var _isScanning = false;
 
 $(function () {
-    console.log("DOM 로드 완료");
-
     if (typeof DataAnalyzer === 'undefined') {
         $("#txtResult").text("DataAnalyzer 로드 실패");
         return;
     }
-
     dataAnalyzer = new DataAnalyzer();
-    console.log("DataAnalyzer 초기화 완료");
 
     $("#btnScan").off("click").on("click", function (e) {
         e.preventDefault();
@@ -34,11 +30,6 @@ async function startScan() {
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         alert("카메라를 지원하지 않습니다");
-        return;
-    }
-
-    if (typeof ZXing === "undefined" || !ZXing.BrowserMultiFormatReader) {
-        alert("ZXing 라이브러리가 로드되지 않았습니다");
         return;
     }
 
@@ -64,7 +55,6 @@ async function startScan() {
 
         _codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
             if (result && result.text) {
-                console.log("스캔 성공:", result.text);
                 stopScan(false);
                 showMultiBlockResult(result.text);
             }
@@ -91,20 +81,20 @@ function stopScan(hide = true) {
         _currentStream = null;
     }
     if (hide) document.getElementById("cameraContainer").style.display = "none";
-
     _isScanning = false;
     $("#btnScan").text("SCAN");
 }
 
 /* ============================================================
- *  여러 블록 결과를 구분하여 표시
+ *  여러 블록 결과를 구분하여 표시 (완전한 버전)
  * ============================================================ */
 function showMultiBlockResult(rawText) {
-    $("#txtResult").empty();
-
+    // 바코드 전체 표시 (블록 모두 포함)
     dataAnalyzer.setBarcodeData(rawText);
+    $("#txtResult").html(dataAnalyzer.getFullViewData());
+
     const blockCount = dataAnalyzer.getCount();
-    console.log("블록 수:", blockCount);
+    console.log("총 블록 수:", blockCount);
 
     // 결과 전체 HTML 구성
     let fullHtml = "";
@@ -113,7 +103,7 @@ function showMultiBlockResult(rawText) {
         const okng = dataAnalyzer.getCheckResult();
         const results = dataAnalyzer.getResultData();
 
-        fullHtml += `<div class="block-section" style="border:2px solid #115f97;margin:10px 0;padding:10px;border-radius:10px;background:#f9f9f9;">
+        fullHtml += `<div class="block-section" style="border:2px solid #115f97;margin:12px 0;padding:10px;border-radius:10px;background:#f9f9f9;">
                         <div style="font-weight:bold;color:#115f97;">[BLOCK ${i + 1}]</div>
                         <table style="width:100%;margin-top:6px;border-collapse:collapse;font-size:13pt;">
                             <tr><th style="background:#ddd;">구분</th><th style="background:#ddd;">결과</th><th style="background:#ddd;">데이터</th></tr>`;
@@ -129,7 +119,11 @@ function showMultiBlockResult(rawText) {
         fullHtml += `</table></div>`;
     }
 
-    $("#txtResult").html(fullHtml);
+    // 결과 테이블 영역에 삽입
+    $("#resultTable").html(`
+        <div class="title">H/KMC부품 2D 바코드 표준</div>
+        ${fullHtml}
+    `);
 }
 
 /* ============================================================
