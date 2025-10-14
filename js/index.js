@@ -1,5 +1,5 @@
 /**********************************************
-*   index.js (iOS Safari 대응 + 멀티블록 + 안정화)
+*   index.js (Safari rowspan fix + multi-block 안정화)
 **********************************************/
 
 var dataAnalyzer = null;
@@ -31,9 +31,6 @@ $(function () {
     $("#txtResult").text("준비 완료 - SCAN 버튼을 터치하세요");
 });
 
-/* ============================================================
- *  카메라 스캔 시작
- * ============================================================ */
 async function startScan() {
     console.log("🎥 startScan() 실행");
 
@@ -95,16 +92,9 @@ async function startScan() {
     }
 }
 
-/* ============================================================
- *  카메라 스캔 중지
- * ============================================================ */
 function stopScan(hide = true) {
-    console.log("🛑 stopScan() 호출");
-
     if (_codeReader) {
-        try {
-            _codeReader.reset();
-        } catch {}
+        try { _codeReader.reset(); } catch {}
         _codeReader = null;
     }
 
@@ -123,12 +113,11 @@ function stopScan(hide = true) {
 }
 
 /* ============================================================
- *  멀티 블록 표시 + 안전한 텍스트 처리
+ *  블록별 표시 (Safari rowspan fix 포함)
  * ============================================================ */
 function displayBarcodeBlocks(text) {
     console.log("📦 원본 스캔 데이터:", text);
 
-    // 안전하게 HTML로 표시
     const safeText = text
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
@@ -141,7 +130,6 @@ function displayBarcodeBlocks(text) {
 
     $("#txtResult").html(safeText);
 
-    // 분석 실행
     if (!dataAnalyzer) return;
     try {
         dataAnalyzer.setBarcodeData(text);
@@ -153,9 +141,7 @@ function displayBarcodeBlocks(text) {
     const totalBlocks = dataAnalyzer.getCount();
     console.log("총 블록 수:", totalBlocks);
 
-    // 이전 결과 제거
     $("#multiBlockContainer").remove();
-
     const container = $("<div id='multiBlockContainer'></div>");
     $("#resultTable").after(container);
 
@@ -165,17 +151,19 @@ function displayBarcodeBlocks(text) {
         const blockHTML = $("<div class='blockWrap'></div>");
         blockHTML.append(`<div class='blockTitle'>📦 Block ${i + 1}</div>`);
 
+        // Safari rowspan fix: clone 후 innerHTML 재조립
         const tableClone = $("#resultTable table").first().clone(true);
-        tableClone.find("td").html("");
-        blockHTML.append(tableClone);
+        const htmlCopy = tableClone.prop("outerHTML");
+        const fixedTable = $(htmlCopy);
+        blockHTML.append(fixedTable);
         container.append(blockHTML);
 
-        fillBlockTable(tableClone);
+        fillBlockTable(fixedTable);
     }
 }
 
 /* ============================================================
- *  각 블록 테이블 채우기
+ *  블록 테이블 채우기
  * ============================================================ */
 function fillBlockTable(table) {
     setAllClear(table);
@@ -186,29 +174,20 @@ function fillBlockTable(table) {
         table.find("#data" + v[0]).html(v[2] || "-");
     });
 
-    // EO 번호가 없을 경우 행 숨김
     if (table.find("#result13").html() === "") table.find("#tr13").hide();
     else table.find("#tr13").show();
 
-    // 부가 정보
     const has30 = table.find("#result30").html() !== "";
     const has31 = table.find("#result31").html() !== "";
-    if (!has30 && !has31) {
-        table.find("#tr30, #tr31").hide();
-    } else {
-        table.find("#tr30, #tr31").show();
-    }
+    if (!has30 && !has31) table.find("#tr30, #tr31").hide();
+    else table.find("#tr30, #tr31").show();
 
-    // 업체영역
     if (table.find("#result40").html() === "") table.find("#tr40").hide();
     else table.find("#tr40").show();
 
     return okng;
 }
 
-/* ============================================================
- *  테이블 초기화
- * ============================================================ */
 function setAllClear(table) {
     ["00","10","11","12","13","20","21","22","23","30","31","40","50"].forEach(id => {
         table.find("#result" + id).html("");
