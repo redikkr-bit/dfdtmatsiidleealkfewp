@@ -263,3 +263,17 @@ td {word-break:break-all;white-space:pre-line;}
   .dim-layer .pop-layer {
     display: block;
   }
+.hidden-row {
+    display: none !important;
+}
+.block-section {
+    padding: 8px;
+    border-radius: 10px;
+    background: #f5faff;
+    margin-bottom: 8px;
+}
+.block-title {
+    font-weight: bold;
+    color: #115f97;
+    margin-bottom: 4px;
+}
