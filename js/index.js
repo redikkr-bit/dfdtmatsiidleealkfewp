@@ -1,6 +1,6 @@
 /**********************************************
- * index.js (멀티 블록 + 테이블 레이아웃 고정 버전)
- **********************************************/
+*   index.js (iOS Safari 대응 + 멀티블록 + 안정화)
+**********************************************/
 
 var dataAnalyzer = null;
 var _codeReader = null;
@@ -8,9 +8,8 @@ var _currentStream = null;
 var _isScanning = false;
 
 $(function () {
-    console.log("DOM 로드 완료");
+    console.log("📱 페이지 로드 완료");
 
-    // DataAnalyzer 확인
     if (typeof DataAnalyzer === "undefined") {
         $("#txtResult").text("⚠️ DataAnalyzer 로드 실패");
         return;
@@ -18,97 +17,145 @@ $(function () {
 
     try {
         dataAnalyzer = new DataAnalyzer();
-        console.log("DataAnalyzer 초기화 성공");
     } catch (e) {
-        $("#txtResult").text("DataAnalyzer 초기화 실패: " + e.message);
+        $("#txtResult").text("DataAnalyzer 초기화 오류: " + e.message);
         return;
     }
 
-    $("#btnScan").off("click").on("click", function (e) {
+    $("#btnScan").on("click", function (e) {
         e.preventDefault();
-        if (!_isScanning) startScan();
-        else stopScan();
+        if (_isScanning) stopScan();
+        else startScan();
     });
 
-    $("#txtResult").text("준비 완료 - SCAN 버튼을 누르세요");
+    $("#txtResult").text("준비 완료 - SCAN 버튼을 터치하세요");
 });
 
 /* ============================================================
- *  스캔 시작
+ *  카메라 스캔 시작
  * ============================================================ */
 async function startScan() {
+    console.log("🎥 startScan() 실행");
+
     const video = document.getElementById("cameraPreview");
     const container = document.getElementById("cameraContainer");
     const btn = $("#btnScan");
 
-    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-        alert("⚠️ 카메라는 HTTPS 환경에서만 작동합니다.");
+    if (!video || !container) return alert("카메라 요소를 찾을 수 없습니다.");
+
+    if (location.protocol !== "https:" && location.hostname !== "localhost") {
+        alert("⚠️ Safari에서는 HTTPS 환경에서만 카메라 접근이 가능합니다.");
+        return;
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("이 브라우저는 카메라 API를 지원하지 않습니다.");
+        return;
+    }
+
+    if (typeof ZXing === "undefined" || !ZXing.BrowserMultiFormatReader) {
+        alert("ZXing 라이브러리를 로드할 수 없습니다.");
         return;
     }
 
     try {
+        btn.prop("disabled", true).text("카메라 접근 중...");
+
         _currentStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: "environment" } },
+            video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
             audio: false
         });
 
         video.srcObject = _currentStream;
         await video.play();
 
-        _isScanning = true;
         container.style.display = "flex";
+        _isScanning = true;
         btn.text("스캔 중... (탭하면 중지)");
 
         _codeReader = new ZXing.BrowserMultiFormatReader();
-        console.log("ZXing 리더 시작");
+        console.log("ZXing Reader 활성화");
 
         _codeReader.decodeFromVideoDevice(null, video, (result, err) => {
             if (result && result.text) {
-                console.log("스캔 성공:", result.text);
+                console.log("✅ 스캔 성공:", result.text);
                 stopScan(false);
                 displayBarcodeBlocks(result.text);
             }
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+                console.warn("⚠️ 디코딩 에러:", err);
+            }
         });
     } catch (err) {
-        alert("카메라 시작 실패: " + err.message);
+        console.error("카메라 실행 오류:", err);
+        alert("카메라 실행 실패: " + err.message);
         stopScan(true);
+    } finally {
+        btn.prop("disabled", false);
     }
 }
 
 /* ============================================================
- *  스캔 중지
+ *  카메라 스캔 중지
  * ============================================================ */
 function stopScan(hide = true) {
+    console.log("🛑 stopScan() 호출");
+
     if (_codeReader) {
-        try { _codeReader.reset(); } catch (e) {}
+        try {
+            _codeReader.reset();
+        } catch {}
         _codeReader = null;
     }
+
     if (_currentStream) {
-        _currentStream.getTracks().forEach(t => t.stop());
+        _currentStream.getTracks().forEach(track => track.stop());
         _currentStream = null;
     }
+
     const video = document.getElementById("cameraPreview");
     if (video) video.srcObject = null;
+
     if (hide) document.getElementById("cameraContainer").style.display = "none";
+
     _isScanning = false;
     $("#btnScan").text("SCAN");
 }
 
 /* ============================================================
- *  멀티 블록 결과 표시
+ *  멀티 블록 표시 + 안전한 텍스트 처리
  * ============================================================ */
 function displayBarcodeBlocks(text) {
-    $("#txtResult").html(text.replace(/\r?\n/g, "<br>"));
-    if (!dataAnalyzer) return;
+    console.log("📦 원본 스캔 데이터:", text);
 
-    dataAnalyzer.setBarcodeData(text);
+    // 안전하게 HTML로 표시
+    const safeText = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\r?\n/g, "<br>")
+        .replace(/[\x00-\x1F\x7F]/g, c => {
+            const code = c.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0");
+            return `<span class="ctrl">[0x${code}]</span>`;
+        });
+
+    $("#txtResult").html(safeText);
+
+    // 분석 실행
+    if (!dataAnalyzer) return;
+    try {
+        dataAnalyzer.setBarcodeData(text);
+    } catch (e) {
+        $("#txtResult").append("<br>⚠️ 분석 실패: " + e.message);
+        return;
+    }
+
     const totalBlocks = dataAnalyzer.getCount();
     console.log("총 블록 수:", totalBlocks);
 
-    // 기존 결과 영역 초기화
+    // 이전 결과 제거
     $("#multiBlockContainer").remove();
 
-    // Block container 새로 생성
     const container = $("<div id='multiBlockContainer'></div>");
     $("#resultTable").after(container);
 
@@ -118,53 +165,53 @@ function displayBarcodeBlocks(text) {
         const blockHTML = $("<div class='blockWrap'></div>");
         blockHTML.append(`<div class='blockTitle'>📦 Block ${i + 1}</div>`);
 
-        // 원본 테이블 복제
         const tableClone = $("#resultTable table").first().clone(true);
-        tableClone.find("td").html(""); // 초기화
+        tableClone.find("td").html("");
         blockHTML.append(tableClone);
-
         container.append(blockHTML);
 
-        // 각 블록 데이터 삽입
-        fillBlockTable(tableClone, dataAnalyzer);
+        fillBlockTable(tableClone);
     }
-
-    $("body").scrollTop(0);
 }
 
 /* ============================================================
- *  블록별 데이터 채우기
+ *  각 블록 테이블 채우기
  * ============================================================ */
-function fillBlockTable(table, analyzer) {
-    const resultData = analyzer.getResultData();
-    const okng = analyzer.getCheckResult();
+function fillBlockTable(table) {
+    setAllClear(table);
 
-    resultData.forEach(v => {
-        const id = v[0];
-        const res = v[1];
-        const dat = v[2];
-        table.find("#result" + id).html(res || "");
-        table.find("#data" + id).html(dat || "");
+    const okng = dataAnalyzer.getCheckResult();
+    dataAnalyzer.getResultData().forEach(function (v) {
+        table.find("#result" + v[0]).html(v[1]);
+        table.find("#data" + v[0]).html(v[2] || "-");
     });
 
-    // EO, 특이정보 등 행 표시 유지
-    const has13 = table.find("#result13").text().trim() !== "";
-    const has30 = table.find("#result30").text().trim() !== "";
-    const has31 = table.find("#result31").text().trim() !== "";
-    const has40 = table.find("#result40").text().trim() !== "";
+    // EO 번호가 없을 경우 행 숨김
+    if (table.find("#result13").html() === "") table.find("#tr13").hide();
+    else table.find("#tr13").show();
 
-    table.find("#tr13").toggle(has13);
-    table.find("#tr30").toggle(has30);
-    table.find("#tr31").toggle(has31);
-    table.find("#tr40").toggle(has40);
+    // 부가 정보
+    const has30 = table.find("#result30").html() !== "";
+    const has31 = table.find("#result31").html() !== "";
+    if (!has30 && !has31) {
+        table.find("#tr30, #tr31").hide();
+    } else {
+        table.find("#tr30, #tr31").show();
+    }
+
+    // 업체영역
+    if (table.find("#result40").html() === "") table.find("#tr40").hide();
+    else table.find("#tr40").show();
+
+    return okng;
 }
 
 /* ============================================================
- *  테이블 클리어
+ *  테이블 초기화
  * ============================================================ */
-function setAllClear() {
-    ["00","10","11","12","13","20","21","22","23","30","31","40","50"].forEach(id=>{
-        $("#result"+id).html("");
-        $("#data"+id).html("");
+function setAllClear(table) {
+    ["00","10","11","12","13","20","21","22","23","30","31","40","50"].forEach(id => {
+        table.find("#result" + id).html("");
+        table.find("#data" + id).html("");
     });
 }
