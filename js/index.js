@@ -1,5 +1,5 @@
 /**********************************************
- * index.js (멀티블록 + 안정된 테이블 레이아웃)
+ * index.js (멀티 블록 + 테이블 레이아웃 고정 버전)
  **********************************************/
 
 var dataAnalyzer = null;
@@ -10,17 +10,17 @@ var _isScanning = false;
 $(function () {
     console.log("DOM 로드 완료");
 
-    if (typeof DataAnalyzer === 'undefined') {
-        $("#txtResult").text("DataAnalyzer 로드 실패");
+    // DataAnalyzer 확인
+    if (typeof DataAnalyzer === "undefined") {
+        $("#txtResult").text("⚠️ DataAnalyzer 로드 실패");
         return;
     }
 
     try {
         dataAnalyzer = new DataAnalyzer();
-        console.log("DataAnalyzer 초기화 완료");
+        console.log("DataAnalyzer 초기화 성공");
     } catch (e) {
-        console.error("DataAnalyzer 생성 실패:", e);
-        $("#txtResult").text("DataAnalyzer 초기화 실패");
+        $("#txtResult").text("DataAnalyzer 초기화 실패: " + e.message);
         return;
     }
 
@@ -30,7 +30,7 @@ $(function () {
         else stopScan();
     });
 
-    $("#txtResult").text("준비 완료 - SCAN 버튼을 눌러주세요");
+    $("#txtResult").text("준비 완료 - SCAN 버튼을 누르세요");
 });
 
 /* ============================================================
@@ -42,12 +42,7 @@ async function startScan() {
     const btn = $("#btnScan");
 
     if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-        alert("카메라는 HTTPS 환경에서만 작동합니다.");
-        return;
-    }
-
-    if (typeof ZXing === "undefined" || !ZXing.BrowserMultiFormatReader) {
-        alert("ZXing 로드 실패!");
+        alert("⚠️ 카메라는 HTTPS 환경에서만 작동합니다.");
         return;
     }
 
@@ -71,7 +66,7 @@ async function startScan() {
             if (result && result.text) {
                 console.log("스캔 성공:", result.text);
                 stopScan(false);
-                displayBarcodeResult(result.text);
+                displayBarcodeBlocks(result.text);
             }
         });
     } catch (err) {
@@ -100,9 +95,9 @@ function stopScan(hide = true) {
 }
 
 /* ============================================================
- *  스캔 결과 처리
+ *  멀티 블록 결과 표시
  * ============================================================ */
-function displayBarcodeResult(text) {
+function displayBarcodeBlocks(text) {
     $("#txtResult").html(text.replace(/\r?\n/g, "<br>"));
     if (!dataAnalyzer) return;
 
@@ -110,61 +105,62 @@ function displayBarcodeResult(text) {
     const totalBlocks = dataAnalyzer.getCount();
     console.log("총 블록 수:", totalBlocks);
 
-    let allResultsHTML = "";
+    // 기존 결과 영역 초기화
+    $("#multiBlockContainer").remove();
+
+    // Block container 새로 생성
+    const container = $("<div id='multiBlockContainer'></div>");
+    $("#resultTable").after(container);
+
     for (let i = 0; i < totalBlocks; i++) {
         dataAnalyzer.setSelectIndex(i);
-        allResultsHTML += `<div class="block-section"><div class="block-title">📦 Block ${i + 1}</div>`;
-        allResultsHTML += dataAnalyzer.getFullViewData() + "</div><hr>";
+
+        const blockHTML = $("<div class='blockWrap'></div>");
+        blockHTML.append(`<div class='blockTitle'>📦 Block ${i + 1}</div>`);
+
+        // 원본 테이블 복제
+        const tableClone = $("#resultTable table").first().clone(true);
+        tableClone.find("td").html(""); // 초기화
+        blockHTML.append(tableClone);
+
+        container.append(blockHTML);
+
+        // 각 블록 데이터 삽입
+        fillBlockTable(tableClone, dataAnalyzer);
     }
 
-    $("#txtResult").html(allResultsHTML);
-    setBarcodeSetMulti(totalBlocks);
+    $("body").scrollTop(0);
 }
 
 /* ============================================================
- *  여러 블록 결과를 테이블에 반영
+ *  블록별 데이터 채우기
  * ============================================================ */
-function setBarcodeSetMulti(blockCount) {
-    setAllClear();
+function fillBlockTable(table, analyzer) {
+    const resultData = analyzer.getResultData();
+    const okng = analyzer.getCheckResult();
 
-    for (let i = 0; i < blockCount; i++) {
-        dataAnalyzer.setSelectIndex(i);
-        const okng = dataAnalyzer.getCheckResult();
-        const resultData = dataAnalyzer.getResultData();
+    resultData.forEach(v => {
+        const id = v[0];
+        const res = v[1];
+        const dat = v[2];
+        table.find("#result" + id).html(res || "");
+        table.find("#data" + id).html(dat || "");
+    });
 
-        resultData.forEach(function (v) {
-            const id = v[0];
-            const res = v[1];
-            const dat = v[2];
+    // EO, 특이정보 등 행 표시 유지
+    const has13 = table.find("#result13").text().trim() !== "";
+    const has30 = table.find("#result30").text().trim() !== "";
+    const has31 = table.find("#result31").text().trim() !== "";
+    const has40 = table.find("#result40").text().trim() !== "";
 
-            if (res && dat) {
-                $("#result" + id).html(res);
-                $("#data" + id).html(dat);
-            }
-        });
-    }
-
-    // EO번호, 특이정보 등 표시 조건
-    controlRowDisplay();
+    table.find("#tr13").toggle(has13);
+    table.find("#tr30").toggle(has30);
+    table.find("#tr31").toggle(has31);
+    table.find("#tr40").toggle(has40);
 }
 
 /* ============================================================
- *  테이블 행 표시 제어 (레이아웃 깨짐 방지)
- * ============================================================ */
-function controlRowDisplay() {
-    toggleRow("#tr13", $("#result13").html());
-    toggleRow("#tr30", $("#result30").html());
-    toggleRow("#tr31", $("#result31").html());
-    toggleRow("#tr40", $("#result40").html());
-}
-
-function toggleRow(selector, content) {
-    if (!content || content.trim() === "") $(selector).addClass("hidden-row");
-    else $(selector).removeClass("hidden-row");
-}
-
-/* ============================================================
- *  테이블 초기화
+ *  테이블 클리어
  * ============================================================ */
 function setAllClear() {
     ["00","10","11","12","13","20","21","22","23","30","31","40","50"].forEach(id=>{
