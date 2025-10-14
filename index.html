@@ -1,63 +1,65 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#115f97">
-    <title>Barcode Checker</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#115f97" />
+  <title>Barcode Checker</title>
 
-    <link rel="stylesheet" href="css/index.css">
+  <link rel="stylesheet" href="css/index.css">
 
-    <!-- jQuery (CDN) -->
-    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
 
-    <!-- ZXing: CDN 사용, 필요시 로컬로 대체 가능 -->
-    <script>
-      // 먼저 시도: 로컬 (js/zxing.min.js). 없으면 CDN 로드.
-      (function(){
-        var local = "js/zxing.min.js";
-        var sLocal = document.createElement('script');
-        sLocal.src = local;
-        sLocal.onload = function(){ console.log("ZXing loaded from local"); };
-        sLocal.onerror = function(){
-          console.log("local zxing not found — loading CDN");
-          var s = document.createElement('script');
-          s.src = "https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js";
-          s.async = true;
-          s.onload = function(){ console.log("ZXing loaded from CDN"); };
-          s.onerror = function(){ console.error("ZXing load failed"); };
-          document.head.appendChild(s);
-        };
-        document.head.appendChild(sLocal);
-      })();
-    </script>
-
+  <!-- ZXing: 로컬(js/zxing.min.js)이 우선, 없으면 CDN 로드 -->
+  <script>
+    (function(){
+      var local = "js/zxing.min.js";
+      var sLocal = document.createElement('script');
+      sLocal.src = local;
+      sLocal.onload = function(){ console.log("ZXing loaded from local"); };
+      sLocal.onerror = function(){
+        console.log("local zxing not found — loading CDN");
+        var s = document.createElement('script');
+        s.src = "https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js";
+        s.async = true;
+        s.onload = function(){ console.log("ZXing loaded from CDN"); };
+        s.onerror = function(){ console.error("ZXing load failed"); };
+        document.head.appendChild(s);
+      };
+      document.head.appendChild(sLocal);
+    })();
+  </script>
 </head>
 <body>
-    <div class="title">바코드 내용</div>
-    <div id="txtResult" class="memo"></div>
+  <!-- 상단: 바코드 원문 영역 -->
+  <div class="title">바코드 내용</div>
+  <div id="txtResult" class="memo"></div>
 
-    <div id="resultArea">
-        <div class="title">H/KMC부품 2D 바코드 표준</div>
-        <!-- 기본 안내용 빈 영역. 실제 블록 결과는 #blocksContainer에 렌더 -->
-        <div id="blocksContainer" class="blocksContainer"></div>
-    </div>
+  <!-- 결과 영역: 고정 타이틀 + 블록 출력 컨테이너 -->
+  <div id="resultArea">
+    <div class="title">H/KMC부품 2D 바코드 표준</div>
 
-    <div class="bottomArea">
-        <button id="btnScan">SCAN</button>
-    </div>
+    <!-- (원본 앱처럼 요약 기본 표는 비워두고 블록별 테이블을 아래에 표시) -->
+    <div id="blocksContainer" class="blocksContainer"></div>
+  </div>
 
-    <!-- 카메라 프리뷰(전체화면 오버레이) -->
-    <div id="cameraContainer">
-        <video id="cameraPreview" autoplay muted playsinline></video>
-        <button id="closeCamBtn" onclick="stopScan()">✕ 닫기</button>
-    </div>
+  <!-- 하단 고정 SCAN 버튼 -->
+  <div class="bottomArea">
+    <button id="btnScan">SCAN</button>
+  </div>
 
-    <!-- DataAnalyzer (provided) -->
-    <script src="js/DataAnalyzer.js"></script>
+  <!-- 카메라 오버레이 -->
+  <div id="cameraContainer">
+    <video id="cameraPreview" autoplay muted playsinline></video>
+    <button id="closeCamBtn" onclick="stopScan()">✕ 닫기</button>
+  </div>
 
-    <!-- 메인 스크립트 -->
-    <script src="js/index.js"></script>
+  <!-- DataAnalyzer (귀하 제공, 사용자가 덮어쓰기 할 수 있도록 동일 경로) -->
+  <script src="js/DataAnalyzer.js"></script>
+
+  <!-- 메인 스크립트 -->
+  <script src="js/index.js"></script>
 </body>
 </html>
