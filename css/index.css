@@ -277,3 +277,21 @@ td {word-break:break-all;white-space:pre-line;}
     color: #115f97;
     margin-bottom: 4px;
 }
+.blockWrap {
+    margin: 10px 0;
+    padding: 10px;
+    background: #f9fcff;
+    border: 2px solid #115f97;
+    border-radius: 10px;
+}
+.blockTitle {
+    font-weight: bold;
+    font-size: 15px;
+    margin-bottom: 5px;
+    color: #115f97;
+}
+#multiBlockContainer table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 5px;
+}
