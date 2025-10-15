@@ -1,5 +1,5 @@
 /******************************************
- *   DataAnalyzer.js (멀티 블록 대응)
+ * DataAnalyzer.js (멀티 블록 + 폰트 안전)
  ******************************************/
 
 function DataAnalyzer() {
@@ -8,134 +8,114 @@ function DataAnalyzer() {
     var _barcodeResultData = [];
     var _barcodeDataStr = "";
     var _barcodeCount = 0;
-    var _selectedIndex = -1; // ✅ 모든 블록 표시 모드
 
     this.setBarcodeData = function (strData) {
         _barcodeData = [];
         _barcodeDataList = [];
         _barcodeResultData = [];
-        _selectedIndex = -1;
-        _barcodeCount = 0;
         _barcodeDataStr = strData;
+        _barcodeCount = 0;
         setArrayFromString(strData);
-        setSharpDivide();
+        divideBySharp();
     };
 
     this.getFullViewData = function () {
         return getCodeFromArray();
     };
 
-    this.getResultData = function () {
-        getDataCheckResult();
-        return _barcodeResultData;
+    this.getAllBlocksResult = function () {
+        return analyzeAllBlocks();
     };
 
-    /* ---------------- 내부 처리 ---------------- */
+    /* ------------ 내부 함수 ------------ */
 
     function setArrayFromString(str) {
-        _barcodeData = [];
-        for (let i = 0; i < str.length; i++) {
-            _barcodeData.push(str.charCodeAt(i));
-        }
+        _barcodeData = Array.from(str).map(c => c.charCodeAt(0));
     }
 
-    function setSharpDivide() {
-        var rowData = [];
-        _barcodeData.forEach(function (v) {
-            rowData.push(v);
-            if (v === 35) { // '#'
-                _barcodeDataList.push(rowData);
-                rowData = [];
+    function divideBySharp() {
+        let temp = [];
+        _barcodeData.forEach(v => {
+            temp.push(v);
+            if (v === 35) { // #
+                _barcodeDataList.push(temp);
+                temp = [];
                 _barcodeCount++;
             }
         });
-        if (rowData.length > 0) {
-            _barcodeDataList.push(rowData);
+        if (temp.length > 0) {
+            _barcodeDataList.push(temp);
             _barcodeCount++;
         }
     }
 
     function getCodeFromArray() {
-        var rtn = "";
-        _barcodeDataList.forEach((block, idx) => {
-            block.forEach(v => rtn += getCodeToChar(v));
-            rtn += "<hr>"; // 블록 구분선
+        let html = "";
+        _barcodeDataList.forEach(block => {
+            html += block.map(v => getCodeToChar(v)).join("") + "<hr>";
         });
-        return rtn;
+        return html;
     }
 
     function getCodeToChar(str) {
+        const entities = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" };
+        const safe = ch => entities[ch] || ch;
+
         if (str === 29) return "<span class='gs'><sup>G</sup><sub>S</sub></span>";
         if (str === 30) return "<span class='rs'><sup>R</sup><sub>S</sub></span>";
         if (str === 4)  return "<span class='eot'><sup>E</sup>O<sub>T</sub></span>";
         if (str === 35) return "#<br>";
-        if ((str >= 0 && str <= 32) || str === 127)
-            return "&lt;0x" + str.toString(16).toUpperCase().padStart(2,"0") + "&gt;";
-        return String.fromCharCode(str);
+        if ((str >= 0 && str < 32) || str === 127)
+            return "&lt;0x" + str.toString(16).padStart(2, "0").toUpperCase() + "&gt;";
+        return safe(String.fromCharCode(str));
     }
 
-    function getDataCheckResult() {
-        _barcodeResultData = [];
-        _barcodeDataList.forEach(function (block, blockIndex) {
-            analyzeBlock(block, blockIndex);
+    function analyzeAllBlocks() {
+        let results = [];
+        _barcodeDataList.forEach((block, idx) => {
+            results.push(analyzeBlock(block));
         });
+        return results;
     }
 
-    function analyzeBlock(rowData, rowIndex) {
-        var sections = getSplitSections(rowData);
-        var ex_00=false, ex_10=false, ex_11=false, ex_12=false, ex_13=false, ex_20=false, ex_40=false, ex_50=false;
+    function analyzeBlock(rowData) {
+        let result = [];
+        let sections = splitByGS(rowData);
+        const add = (t, ok, d) => result.push([t, ok?"<span class='eot'>OK</span>":"<span class='gs'>NG</span>", d]);
 
         // Header
-        if (rowData.length >= 7 &&
-            rowData[0]===91 && rowData[1]===41 && rowData[2]===62 &&
-            rowData[3]===30 && rowData[4]===48 && rowData[5]===54 && rowData[6]===29) {
-            ex_00 = true;
-            setAddDetail("00", true, rowData.slice(0,7), rowIndex);
-        }
-
+        if (rowData[0] === 91 && rowData[1] === 41) add("00", true, getPart(rowData,0,7));
         // Trailer
-        if (rowData[rowData.length-1]===35 || rowData[rowData.length-1]===4) {
-            ex_50 = true;
-            setAddDetail("50", true, rowData.slice(-4), rowIndex);
-        }
+        if (rowData[rowData.length-1]===35 || rowData[rowData.length-1]===4) add("50", true, "끝");
 
-        // 내부 구분자 기준 split
-        sections.forEach(function (part) {
-            const code = part[0];
-            if (code===86){ ex_10=true; setAddDetail("10", true, part.slice(1), rowIndex);}
-            else if (code===80){ ex_11=true; setAddDetail("11", true, part.slice(1), rowIndex);}
-            else if (code===83){ ex_12=true; setAddDetail("12", true, part.slice(1), rowIndex);}
-            else if (code===69){ ex_13=true; setAddDetail("13", true, part.slice(1), rowIndex);}
-            else if (code===84){ ex_20=true; setAddDetail("20", true, part.slice(1,7), rowIndex);}
-            else if (code===67){ ex_40=true; setAddDetail("40", true, part.slice(1), rowIndex);}
+        sections.forEach(part=>{
+            const c=part[0];
+            if(c===86)add("10",true,toStr(part.slice(1)));
+            else if(c===80)add("11",true,toStr(part.slice(1)));
+            else if(c===83)add("12",true,toStr(part.slice(1)));
+            else if(c===69)add("13",true,toStr(part.slice(1)));
+            else if(c===84)add("20",true,toStr(part.slice(1)));
+            else if(c===67)add("40",true,toStr(part.slice(1)));
         });
 
-        // 필수값 누락 시 표시
-        if (!ex_00) setAddDetail("00", false, null, rowIndex);
-        if (!ex_10) setAddDetail("10", false, null, rowIndex);
-        if (!ex_11) setAddDetail("11", false, null, rowIndex);
-        if (!ex_20) setAddDetail("20", false, null, rowIndex);
-        if (!ex_50) setAddDetail("50", false, null, rowIndex);
-    }
-
-    function getSplitSections(arr) {
-        var result=[], temp=[];
-        arr.forEach(v=>{
-            if (v===29){ result.push(temp); temp=[]; }
-            else temp.push(v);
-        });
-        if (temp.length>0) result.push(temp);
         return result;
     }
 
-    function setAddDetail(type, okng, data, idx) {
-        if (_selectedIndex===-1 || _selectedIndex===idx){
-            _barcodeResultData.push([type, okng ? "<span class='eot'>OK</span>" : "<span class='gs'>NG</span>", 
-                                     data ? convertToString(data) : null]);
-        }
+    function splitByGS(arr) {
+        let res=[],tmp=[];
+        arr.forEach(v=>{
+            if(v===29){res.push(tmp);tmp=[];}
+            else tmp.push(v);
+        });
+        if(tmp.length>0)res.push(tmp);
+        return res;
     }
 
-    function convertToString(arr){
-        return arr.map(c=>String.fromCharCode(c)).join("");
+    function toStr(arr){
+        return arr.map(v=>String.fromCharCode(v)).join("");
+    }
+
+    function getPart(arr,s,e){
+        return arr.slice(s,e).map(v=>String.fromCharCode(v)).join("");
     }
 }
