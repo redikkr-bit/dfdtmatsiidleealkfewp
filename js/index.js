@@ -1,36 +1,26 @@
 /**********************************************
- *   index.js (iOS Safari 대응 + 멀티 블록 스캔)
+ * index.js (멀티 블록 + 원본 스타일 + 폰트깨짐 해결)
  **********************************************/
 
-let dataAnalyzer = null;
 let scanner = null;
 let scannedCodes = [];
 let scanTimer = null;
+let dataAnalyzer = null;
 let _isScanning = false;
 
 $(function () {
-    console.log("📦 DOM 로드 완료");
-
-    if (typeof DataAnalyzer === "undefined") {
-        $("#txtResult").text("❌ DataAnalyzer 로드 실패");
-        return;
-    }
-
+    console.log("📦 App Init");
     dataAnalyzer = new DataAnalyzer();
-    console.log("✅ DataAnalyzer 초기화 완료");
 
-    $("#btnScan").off("click").on("click", function (e) {
-        e.preventDefault();
-        if (!_isScanning) startScan();
-        else stopScan();
+    $("#btnScan").on("click", function () {
+        if (_isScanning) stopScan();
+        else startScan();
     });
 });
 
 async function startScan() {
-    console.log("🎥 startScan 호출됨");
     const video = document.getElementById("cameraPreview");
     const container = document.getElementById("cameraContainer");
-    const btn = $("#btnScan");
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         alert("이 브라우저는 카메라를 지원하지 않습니다.");
@@ -39,53 +29,42 @@ async function startScan() {
 
     try {
         _isScanning = true;
-        btn.text("스캔 중... (탭하면 중지)").prop("disabled", true);
+        $("#btnScan").text("스캔 중...");
 
         const stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: "environment" },
             audio: false
         });
-
         video.srcObject = stream;
-        await video.play();
-
         container.style.display = "flex";
+
         scannedCodes = [];
+        const reader = new ZXing.BrowserMultiFormatReader();
+        scanner = reader;
 
-        const codeReader = new ZXing.BrowserMultiFormatReader();
-        scanner = codeReader;
-
-        console.log("📸 ZXing 시작됨");
-
-        codeReader.decodeFromVideoDevice(null, video, (result, err) => {
+        reader.decodeFromVideoDevice(null, video, (result, err) => {
             if (result) {
                 const text = result.text.trim();
                 if (!scannedCodes.includes(text)) {
                     scannedCodes.push(text);
-                    console.log("✅ 스캔 성공:", text);
+                    console.log("📸 스캔:", text);
                 }
-
-                // 3초 타이머 리셋
                 clearTimeout(scanTimer);
                 scanTimer = setTimeout(() => {
                     stopScan(false);
                     handleScanComplete();
-                }, 3000);
+                }, 2000);
             }
         });
     } catch (err) {
-        console.error("🚫 카메라 에러:", err);
         alert("카메라 접근 실패: " + err.message);
-        stopScan(true);
-    } finally {
-        $("#btnScan").prop("disabled", false);
+        stopScan();
     }
 }
 
 function stopScan(hide = true) {
-    console.log("🛑 stopScan 호출");
     if (scanner) {
-        try { scanner.reset(); } catch (e) { console.warn("scanner reset error:", e); }
+        try { scanner.reset(); } catch (e) {}
         scanner = null;
     }
     const video = document.getElementById("cameraPreview");
@@ -98,33 +77,39 @@ function stopScan(hide = true) {
     $("#btnScan").text("SCAN");
 }
 
-// ✅ 스캔 완료 후 DataAnalyzer 처리
 function handleScanComplete() {
-    console.log("🧩 스캔 완료:", scannedCodes);
     if (scannedCodes.length === 0) {
         $("#txtResult").text("스캔된 코드가 없습니다.");
         return;
     }
 
-    // 여러 블록 병합 (# 구분)
-    const mergedData = scannedCodes.join("#");
-    dataAnalyzer.setBarcodeData(mergedData);
-
+    // 블록들을 #으로 구분
+    const merged = scannedCodes.join("#");
+    dataAnalyzer.setBarcodeData(merged);
     $("#txtResult").html(dataAnalyzer.getFullViewData());
-    renderResultTable(dataAnalyzer.getResultData());
+
+    renderAllResults();
 }
 
-function renderResultTable(results) {
-    clearResultTable();
-    results.forEach(([type, okng, data]) => {
-        $(`#result${type}`).html(okng);
-        $(`#data${type}`).html(data ?? "-");
+function renderAllResults() {
+    $("#resultContainer").empty();
+
+    dataAnalyzer.getAllBlocksResult().forEach((block, idx) => {
+        const table = $("<table>").append(`
+            <tr><th colspan="3">[ ${idx + 1}번째 블록 ]</th></tr>
+            <tr><th>항목</th><th>결과</th><th>데이터</th></tr>
+        `);
+        block.forEach(([type, okng, data]) => {
+            table.append(`<tr><td>${getTitle(type)}</td><td class="ct">${okng}</td><td>${data ?? ""}</td></tr>`);
+        });
+        $("#resultContainer").append(table).append("<br>");
     });
 }
 
-function clearResultTable() {
-    ["00","10","11","12","13","20","40","50"].forEach(id=>{
-        $(`#result${id}`).html("");
-        $(`#data${id}`).html("");
-    });
+function getTitle(type) {
+    const map = {
+        "00":"Header","10":"업체코드","11":"부품번호","12":"서열코드",
+        "13":"EO번호","20":"추적코드","40":"업체영역","50":"Trailer"
+    };
+    return map[type] ?? type;
 }
