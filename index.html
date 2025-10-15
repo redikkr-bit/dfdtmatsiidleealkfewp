@@ -2,49 +2,29 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>DataMatrix Scanner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Barcode Checker</title>
 
-    <!-- jQuery & ZXing -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
-
-    <!-- CSS -->
     <link rel="stylesheet" href="css/index.css">
-
-    <!-- JS -->
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
     <script src="js/DataAnalyzer.js"></script>
     <script src="js/index.js"></script>
 </head>
+
 <body>
-    <div class="title">📷 Data Matrix Scanner</div>
+    <div class="title">H/KMC부품 2D 바코드 표준</div>
+    <div id="txtResult" class="memo">SCAN 버튼을 눌러주세요.</div>
 
-    <div id="cameraContainer" style="display:none; flex-direction:column; align-items:center;">
-        <video id="cameraPreview" style="width:100%; max-width:480px; border:1px solid #ccc; border-radius:10px;" autoplay playsinline></video>
-    </div>
-
-    <div id="txtResult" class="memo">
-        준비 완료 - SCAN 버튼을 터치하세요
-    </div>
-
-    <table id="resultTable">
-        <thead>
-            <tr><th>항목</th><th>결과</th><th>데이터</th></tr>
-        </thead>
-        <tbody>
-            <tr><td>Header</td><td id="result00"></td><td id="data00"></td></tr>
-            <tr><td>업체코드</td><td id="result10"></td><td id="data10"></td></tr>
-            <tr><td>부품번호</td><td id="result11"></td><td id="data11"></td></tr>
-            <tr><td>서열코드</td><td id="result12"></td><td id="data12"></td></tr>
-            <tr><td>EO번호</td><td id="result13"></td><td id="data13"></td></tr>
-            <tr><td>추적코드</td><td id="result20"></td><td id="data20"></td></tr>
-            <tr><td>업체영역</td><td id="result40"></td><td id="data40"></td></tr>
-            <tr><td>Trailer</td><td id="result50"></td><td id="data50"></td></tr>
-        </tbody>
-    </table>
+    <div id="resultContainer"></div>
 
     <div class="bottomArea">
         <button id="btnScan">SCAN</button>
+    </div>
+
+    <div id="cameraContainer">
+        <video id="cameraPreview" autoplay muted playsinline></video>
+        <button id="closeCamBtn" onclick="stopScan()">✕ 닫기</button>
     </div>
 </body>
 </html>
