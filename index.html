@@ -1,112 +1,50 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="theme-color" content="#115f97">
-    <title>Barcode Checker</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DataMatrix Scanner</title>
+
+    <!-- jQuery & ZXing -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 
     <!-- CSS -->
     <link rel="stylesheet" href="css/index.css">
 
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
-
-    <!-- 아이콘 -->
-    <link rel="apple-touch-icon" href="img/icon-192.png">
-
-    <style>
-        #cameraContainer {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: black;
-            justify-content: center;
-            align-items: center;
-            z-index: 200;
-        }
-        #cameraPreview {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        #closeCamBtn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(255, 255, 255, 0.8);
-            border: none;
-            font-size: 18px;
-            padding: 6px 10px;
-            border-radius: 8px;
-        }
-    </style>
+    <!-- JS -->
+    <script src="js/DataAnalyzer.js"></script>
+    <script src="js/index.js"></script>
 </head>
-
 <body>
-    <div class="title">바코드 내용</div>
-    <div id="txtResult" class="memo"></div>
+    <div class="title">📷 Data Matrix Scanner</div>
 
-    <div id="resultTable">
-        <div class="title">H/KMC부품 2D 바코드 표준</div>
-        <table>
-            <tr>
-                <th colspan=2>구분</th>
-                <th style="width:40px;">결과</th>
-                <th>Data</th>
-            </tr>
-            <tr><th colspan=2>Header</th><td class="ct" id="result00"></td><td id="data00"></td></tr>
-            <tr><th rowspan=4 style="width:40px;" id="title_m10">사양<br>정보</th><th>업체코드</th><td class="ct" id="result10"></td><td id="data10"></td></tr>
-            <tr><th>부품번호</th><td class="ct" id="result11"></td><td id="data11"></td></tr>
-            <tr><th>서열코드</th><td class="ct" id="result12"></td><td id="data12"></td></tr>
-            <tr id="tr13"><th>EO번호</th><td class="ct" id="result13"></td><td id="data13"></td></tr>
-            <tr><th rowspan=4>추적<br>정보</th><th>생산일자</th><td class="ct" id="result20"></td><td id="data20"></td></tr>
-            <tr><th>부품4M</th><td class="ct" id="result21"></td><td id="data21"></td></tr>
-            <tr><th>A or @</th><td class="ct" id="result22"></td><td id="data22"></td></tr>
-            <tr><th>추적번호(7~)</th><td class="ct" id="result23"></td><td id="data23"></td></tr>
-            <tr id="tr30"><th rowspan=2 id="title_m30">부가<br>정보</th><th>특이정보</th><td class="ct" id="result30"></td><td id="data30"></td></tr>
-            <tr id="tr31"><th>초도품구분</th><td class="ct" id="result31"></td><td id="data31"></td></tr>
-            <tr id="tr40"><th>기타</th><th>업체영역</th><td class="ct" id="result40"></td><td id="data40"></td></tr>
-            <tr><th colspan=2>Trailer</th><td class="ct" id="result50"></td><td id="data50"></td></tr>
-        </table>
+    <div id="cameraContainer" style="display:none; flex-direction:column; align-items:center;">
+        <video id="cameraPreview" style="width:100%; max-width:480px; border:1px solid #ccc; border-radius:10px;" autoplay playsinline></video>
     </div>
+
+    <div id="txtResult" class="memo">
+        준비 완료 - SCAN 버튼을 터치하세요
+    </div>
+
+    <table id="resultTable">
+        <thead>
+            <tr><th>항목</th><th>결과</th><th>데이터</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>Header</td><td id="result00"></td><td id="data00"></td></tr>
+            <tr><td>업체코드</td><td id="result10"></td><td id="data10"></td></tr>
+            <tr><td>부품번호</td><td id="result11"></td><td id="data11"></td></tr>
+            <tr><td>서열코드</td><td id="result12"></td><td id="data12"></td></tr>
+            <tr><td>EO번호</td><td id="result13"></td><td id="data13"></td></tr>
+            <tr><td>추적코드</td><td id="result20"></td><td id="data20"></td></tr>
+            <tr><td>업체영역</td><td id="result40"></td><td id="data40"></td></tr>
+            <tr><td>Trailer</td><td id="result50"></td><td id="data50"></td></tr>
+        </tbody>
+    </table>
 
     <div class="bottomArea">
         <button id="btnScan">SCAN</button>
     </div>
-
-    <!-- 카메라 미리보기 -->
-    <div id="cameraContainer">
-        <video id="cameraPreview" autoplay muted playsinline></video>
-        <button id="closeCamBtn" onclick="stopScan()">✕ 닫기</button>
-    </div>
-
-    <!-- Script 로드 순서 중요 - CDN으로 변경 -->
-    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
-    <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
-    <script src="js/DataAnalyzer.js"></script>
-    <script src="js/index.js"></script>
-
-    <script>
-        // PWA Service Worker 등록
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-                .then(() => console.log('✅ Service Worker Registered'))
-                .catch(err => console.warn('SW registration failed:', err));
-        }
-
-        // 스크립트 로드 상태 확인
-        window.addEventListener('load', function() {
-            console.log('jQuery loaded:', typeof jQuery !== 'undefined');
-            console.log('ZXing loaded:', typeof ZXing !== 'undefined');
-            console.log('DataAnalyzer:', typeof DataAnalyzer !== 'undefined');
-        });
-    </script>
 </body>
 </html>
