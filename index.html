@@ -2,29 +2,78 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Barcode Checker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2D 바코드 검사기</title>
 
     <link rel="stylesheet" href="css/index.css">
     <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
     <script src="js/DataAnalyzer.js"></script>
     <script src="js/index.js"></script>
+
+    <style>
+        /* Safari 대응 및 스캔화면 */
+        #cameraContainer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        #cameraPreview {
+            width: 90%;
+            max-height: 70vh;
+            border: 3px solid #24A7D3;
+            border-radius: 12px;
+            background-color: black;
+        }
+        #closeCamBtn {
+            margin-top: 10px;
+            width: 120px;
+            height: 45px;
+            background-color: red;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        #resultContainer table {
+            margin-bottom: 12px;
+        }
+        #txtResult {
+            font-family: monospace;
+            font-size: 13pt;
+        }
+    </style>
 </head>
 
 <body>
+    <!-- 상단 타이틀 -->
     <div class="title">H/KMC부품 2D 바코드 표준</div>
-    <div id="txtResult" class="memo">SCAN 버튼을 눌러주세요.</div>
 
+    <!-- 스캔된 결과 원문 표시 -->
+    <div id="txtResult" class="memo">
+        SCAN 버튼을 눌러 카메라를 실행하세요.
+    </div>
+
+    <!-- 멀티 블록 결과 -->
     <div id="resultContainer"></div>
 
+    <!-- 하단 고정 버튼 -->
     <div class="bottomArea">
         <button id="btnScan">SCAN</button>
     </div>
 
+    <!-- 카메라 미리보기 영역 -->
     <div id="cameraContainer">
         <video id="cameraPreview" autoplay muted playsinline></video>
-        <button id="closeCamBtn" onclick="stopScan()">✕ 닫기</button>
+        <button id="closeCamBtn" onclick="stopScan()">닫기 ✕</button>
     </div>
 </body>
 </html>
