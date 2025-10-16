@@ -1,4 +1,3 @@
-
 * {
     -webkit-tap-highlight-color: rgba(255, 255, 255, 0) !important;
     -webkit-focus-ring-color: rgba(255, 255, 255, 0) !important;
@@ -263,3 +262,171 @@ td {word-break:break-all;white-space:pre-line;}
   .dim-layer .pop-layer {
     display: block;
   }
+
+/* ============================================================
+ * 다중 블록 지원 스타일 (추가)
+ * ============================================================ */
+
+/* 블록 선택 UI 스타일 */
+.block-selection {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 10px 0;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.selection-title {
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #115f97;
+    font-size: 14pt;
+}
+
+.selection-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.block-btn {
+    padding: 8px 16px;
+    border: 2px solid #115f97;
+    background: white;
+    color: #115f97;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 12pt;
+    font-weight: bold;
+    min-width: 80px;
+}
+
+.block-btn.selected {
+    background: #115f97;
+    color: white;
+    -moz-box-shadow: inset 0px 1px 0px 0px #54a3f7;
+    -webkit-box-shadow: inset 0px 1px 0px 0px #54a3f7;
+    box-shadow: inset 0px 1px 0px 0px #54a3f7;
+}
+
+.block-btn:active {
+    -webkit-transform: scale(.95);
+    -moz-transform: scale(.95);
+    -ms-transform: scale(.95);
+    -o-transform: scale(.95);
+    transform: scale(.95);
+}
+
+/* 블록 표시 스타일 */
+.selected-block {
+    background: #e8f4ff;
+    padding: 12px;
+    border-radius: 6px;
+    border-left: 4px solid #115f97;
+    margin: 8px 0;
+    word-break: break-all;
+    white-space: pre-line;
+}
+
+.other-block {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 6px;
+    margin: 8px 0;
+    border: 1px solid #dee2e6;
+    word-break: break-all;
+    white-space: pre-line;
+}
+
+.block-header {
+    font-weight: bold;
+    color: #115f97;
+    margin-top: 16px;
+    margin-bottom: 8px;
+    font-size: 13pt;
+    padding-left: 8px;
+    border-left: 3px solid #115f97;
+}
+
+/* 다중 블록이 있을 때의 메모 영역 스타일 */
+.memo.has-multiple-blocks {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 2px solid #115f97;
+}
+
+/* 반응형 디자인: 모바일 대응 */
+@media (max-width: 480px) {
+    .selection-buttons {
+        gap: 6px;
+    }
+    
+    .block-btn {
+        padding: 6px 12px;
+        font-size: 11pt;
+        min-width: 70px;
+    }
+    
+    .selected-block,
+    .other-block {
+        padding: 10px;
+        font-size: 11pt;
+    }
+    
+    .block-header {
+        font-size: 12pt;
+    }
+}
+
+/* Safari 특수 대응 */
+@supports (-webkit-touch-callout: none) {
+    .block-btn {
+        -webkit-tap-highlight-color: rgba(17, 95, 151, 0.3);
+    }
+    
+    .selected-block,
+    .other-block {
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* 다크모드 대응 (선택사항) */
+@media (prefers-color-scheme: dark) {
+    .block-selection {
+        background: #2d3748;
+        border-color: #4a5568;
+    }
+    
+    .selection-title {
+        color: #63b3ed;
+    }
+    
+    .block-btn {
+        background: #4a5568;
+        color: #e2e8f0;
+        border-color: #63b3ed;
+    }
+    
+    .block-btn.selected {
+        background: #63b3ed;
+        color: #1a202c;
+    }
+    
+    .selected-block {
+        background: #2d3748;
+        border-left-color: #63b3ed;
+    }
+    
+    .other-block {
+        background: #4a5568;
+        border-color: #718096;
+    }
+    
+    .block-header {
+        color: #63b3ed;
+        border-left-color: #63b3ed;
+    }
+}
