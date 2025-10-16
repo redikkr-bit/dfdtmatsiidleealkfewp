@@ -1,104 +1,125 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Data Matrix Scanner</title>
-  <link rel="stylesheet" href="css/index.css" />
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://unpkg.com/@zxing/library@latest"></script>
-  <script src="js/DataAnalyzer.js"></script>
-  <script src="js/index.js"></script>
-  <style>
-    body {
-      font-family: "HelveticaNeue-Light", "Helvetica Neue", Arial, sans-serif;
-      background-color: #f8f8f8;
-      color: #000;
-      padding-bottom: 120px;
-    }
-    #cameraContainer {
-      display: none;
-      justify-content: center;
-      align-items: center;
-      width: 100%;
-      background-color: #000;
-      position: relative;
-    }
-    #cameraPreview {
-      width: 100%;
-      max-height: 60vh;
-      object-fit: cover;
-    }
-    #txtResult {
-      background-color: #fff;
-      border: solid 1px silver;
-      border-radius: 10px;
-      padding: 10px;
-      font-size: 13pt;
-      margin-top: 10px;
-      min-height: 60px;
-      overflow-x: auto;
-      word-break: break-all;
-      white-space: pre-wrap;
-    }
-    #resultTable {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-      background-color: #fff;
-      font-size: 12pt;
-    }
-    #resultTable th, #resultTable td {
-      border: 1px solid #ccc;
-      padding: 6px;
-      text-align: center;
-    }
-    #resultTable th {
-      background-color: #eee;
-    }
-    #btnScan {
-      width: 80%;
-      height: 60px;
-      font-size: 16pt;
-      margin: 20px auto;
-      display: block;
-    }
-    .footer {
-      text-align: center;
-      font-size: 10pt;
-      color: gray;
-      margin-top: 20px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#115f97">
+    <title>2D 바코드 표준</title>
+    <link rel="stylesheet" href="css/index.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="img/icon-192.png">
+    <style>
+        #cameraContainer {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: black;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+        #cameraPreview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        #closeCamBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            border: none;
+            font-size: 18px;
+            padding: 6px 10px;
+            border-radius: 8px;
+        }
+    </style>
 </head>
-
 <body>
-  <h2 class="title">Data Matrix 스캐너</h2>
+    <!-- 바코드 내용 섹션 -->
+    <div class="title">바코드내용</div>
+    <div id="txtResult" class="memo"></div>
 
-  <div id="cameraContainer">
-    <video id="cameraPreview"></video>
-  </div>
+    <!-- 블록 선택 탭 -->
+    <div id="blockTabs" class="tab-container">
+        <button class="tab-button active" data-tab="0">Assy</button>
+        <button class="tab-button" data-tab="1">Sub01</button>
+        <button class="tab-button" data-tab="2">Sub02</button>
+    </div>
 
-  <div id="txtResult">스캔 결과가 여기에 표시됩니다.</div>
+    <!-- H/KMC부품 2D 바코드 표준 테이블 -->
+    <div id="resultTable">
+        <div class="title">H/KMC부품 2D 바코드 표준</div>
+        <table>
+            <tr>
+                <th>구분</th>
+                <th style="width:60px;">결과</th>
+                <th>Data</th>
+            </tr>
+            <tr><td>Header</td><td class="ct" id="result00"></td><td id="data00"></td></tr>
+            <tr><td>업체코드</td><td class="ct" id="result10"></td><td id="data10"></td></tr>
+            <tr><td>부품번호</td><td class="ct" id="result11"></td><td id="data11"></td></tr>
+            <tr><td>서열코드</td><td class="ct" id="result12"></td><td id="data12"></td></tr>
+            <tr><td>EO번호</td><td class="ct" id="result13"></td><td id="data13"></td></tr>
+            <tr><td>생산일자</td><td class="ct" id="result20"></td><td id="data20"></td></tr>
+            <tr><td>부품4M</td><td class="ct" id="result21"></td><td id="data21"></td></tr>
+            <tr><td>A or @</td><td class="ct" id="result22"></td><td id="data22"></td></tr>
+            <tr><td>추적번호(7~)</td><td class="ct" id="result23"></td><td id="data23"></td></tr>
+            <tr><td>특이정보</td><td class="ct" id="result30"></td><td id="data30"></td></tr>
+            <tr><td>초도품구분</td><td class="ct" id="result31"></td><td id="data31"></td></tr>
+            <tr><td>업체영역</td><td class="ct" id="result40"></td><td id="data40"></td></tr>
+            <tr><td>Trailer</td><td class="ct" id="result50"></td><td id="data50"></td></tr>
+        </table>
+    </div>
 
-  <table id="resultTable">
-    <thead>
-      <tr><th>항목</th><th>결과</th><th>데이터</th></tr>
-    </thead>
-    <tbody>
-      <tr id="tr00"><td>Header</td><td id="result00"></td><td id="data00"></td></tr>
-      <tr id="tr10"><td>업체코드</td><td id="result10"></td><td id="data10"></td></tr>
-      <tr id="tr11"><td>부품번호</td><td id="result11"></td><td id="data11"></td></tr>
-      <tr id="tr12"><td>서열코드</td><td id="result12"></td><td id="data12"></td></tr>
-      <tr id="tr13"><td>EO번호</td><td id="result13"></td><td id="data13"></td></tr>
-      <tr id="tr20"><td>추적코드</td><td id="result20"></td><td id="data20"></td></tr>
-      <tr id="tr40"><td>업체영역</td><td id="result40"></td><td id="data40"></td></tr>
-      <tr id="tr50"><td>Trailer</td><td id="result50"></td><td id="data50"></td></tr>
-    </tbody>
-  </table>
+    <!-- 하단 버튼 영역 -->
+    <div class="bottomArea">
+        <button id="btnScan">SCAN</button>
+    </div>
 
-  <button id="btnScan">SCAN</button>
+    <!-- 카메라 미리보기 -->
+    <div id="cameraContainer">
+        <video id="cameraPreview" autoplay muted playsinline></video>
+        <button id="closeCamBtn">✕ 닫기</button>
+    </div>
 
-  <div class="footer">© redikkr-bit.github.io</div>
+    <!-- Script -->
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
+    <script src="js/DataAnalyzer.js"></script>
+    <script src="js/index.js"></script>
+
+    <script>
+        // PWA Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log('✅ Service Worker Registered'))
+                .catch(err => console.warn('SW registration failed:', err));
+        }
+
+        // 탭 전환 기능
+        $(document).on('click', '.tab-button', function() {
+            const tabIndex = $(this).data('tab');
+            $('.tab-button').removeClass('active');
+            $(this).addClass('active');
+            
+            if (window.dataAnalyzer) {
+                dataAnalyzer.setSelectIndex(tabIndex);
+                setBarcodeResultDetail();
+                updateBarcodeDisplay();
+            }
+        });
+
+        function updateBarcodeDisplay() {
+            if (window.dataAnalyzer) {
+                $("#txtResult").html(dataAnalyzer.getFullViewData());
+            }
+        }
+    </script>
 </body>
 </html>
