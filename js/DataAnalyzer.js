@@ -1,121 +1,295 @@
 /******************************************
- * DataAnalyzer.js (멀티 블록 + 폰트 안전)
+ * 데이터 분석 및 검증 + 시각화 모듈 - 수정버전
  ******************************************/
-
 function DataAnalyzer() {
     var _barcodeData = [];
     var _barcodeDataList = [];
-    var _barcodeResultData = [];
+    var _barcodeResultData = []; // 모든 블록의 결과를 저장하는 2차원 배열
     var _barcodeDataStr = "";
     var _barcodeCount = 0;
+    var _selectedIndex = 0;
 
+    // 바코드 데이터 설정
     this.setBarcodeData = function (strData) {
         _barcodeData = [];
         _barcodeDataList = [];
         _barcodeResultData = [];
-        _barcodeDataStr = strData;
+        _selectedIndex = 0;
         _barcodeCount = 0;
+        _barcodeDataStr = strData;
         setArrayFromString(strData);
-        divideBySharp();
+        setSharpDivide();
     };
 
+    // 선택된 index 번호 설정
+    this.setSelectIndex = function (index) {
+        if (index >= 0 && index < _barcodeCount) {
+            _selectedIndex = index;
+        }
+    };
+
+    // View용 전체 문자열 리턴 - 모든 블록 표시
     this.getFullViewData = function () {
         return getCodeFromArray();
     };
 
-    this.getAllBlocksResult = function () {
-        return analyzeAllBlocks();
+    // #으로 구분된 바코드 세트 개수 리턴
+    this.getCount = function () {
+        return _barcodeCount;
     };
 
-    /* ------------ 내부 함수 ------------ */
+    // 모든 블록의 검증 결과 리턴
+    this.getAllResultData = function () {
+        return _barcodeResultData;
+    };
 
-    function setArrayFromString(str) {
-        _barcodeData = Array.from(str).map(c => c.charCodeAt(0));
-    }
+    // 선택된 블록의 검증 결과 리턴
+    this.getSelectedResultData = function () {
+        if (_barcodeResultData[_selectedIndex]) {
+            return _barcodeResultData[_selectedIndex];
+        }
+        return [];
+    };
 
-    function divideBySharp() {
-        let temp = [];
-        _barcodeData.forEach(v => {
-            temp.push(v);
+    // 선택된 index 번호 리턴
+    this.getSelectedIndex = function () {
+        return _selectedIndex;
+    };
+
+    // # 기준으로 바코드를 나눠서 보관
+    function setSharpDivide() {
+        var rowData = [];
+        _barcodeData.forEach(function (v) {
+            rowData.push(v);
             if (v === 35) { // #
-                _barcodeDataList.push(temp);
-                temp = [];
-                _barcodeCount++;
+                _barcodeDataList.push(rowData);
+                rowData = [];
+                _barcodeCount += 1;
             }
         });
-        if (temp.length > 0) {
-            _barcodeDataList.push(temp);
-            _barcodeCount++;
+        if (rowData.length > 0) {
+            _barcodeDataList.push(rowData);
+            _barcodeCount += 1;
+        }
+        
+        console.log(`분리된 블록 개수: ${_barcodeCount}`);
+    }
+
+    // 배열 데이터를 표시용 문자열로 리턴 - 모든 블록 표시
+    function getCodeFromArray() {
+        var rtnData = "";
+        _barcodeDataList.forEach(function (valRow, indexRow) {
+            rtnData += `<div class="block-header">블록 ${indexRow + 1}/${_barcodeCount}</div>`;
+            if (indexRow === _selectedIndex) {
+                rtnData += "<div class='selected-block'>";
+            } else {
+                rtnData += "<div class='other-block'>";
+            }
+            
+            valRow.forEach(function (v) {
+                rtnData += getCodeToChar(v);
+            });
+            
+            rtnData += "</div>";
+        });
+        return rtnData;
+    }
+
+    // 입력받은 배열 데이터를 표시용 문자열로 리턴
+    function getCodeFromArrayData(arrData) {
+        var rtnData = "";
+        if (typeof arrData === "number") {
+            rtnData = getCodeToChar(arrData);
+        } else if (Array.isArray(arrData)) {
+            arrData.forEach(function (v) {
+                rtnData += getCodeToChar(v);
+            });
+        }
+        return rtnData;
+    }
+
+    // 문자열을 바이트 배열로 변환
+    function setArrayFromString(str) {
+        _barcodeData = [];
+        for (var i = 0; i < str.length; i++) {
+            _barcodeData.push(str.charCodeAt(i));
         }
     }
 
-    function getCodeFromArray() {
-        let html = "";
-        _barcodeDataList.forEach(block => {
-            html += block.map(v => getCodeToChar(v)).join("") + "<hr>";
-        });
-        return html;
-    }
-
+    // 문자 코드 → 화면용 문자 변환
     function getCodeToChar(str) {
-        const entities = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" };
-        const safe = ch => entities[ch] || ch;
-
-        if (str === 29) return "<span class='gs'><sup>G</sup><sub>S</sub></span>";
-        if (str === 30) return "<span class='rs'><sup>R</sup><sub>S</sub></span>";
-        if (str === 4)  return "<span class='eot'><sup>E</sup>O<sub>T</sub></span>";
-        if (str === 35) return "#<br>";
-        if ((str >= 0 && str < 32) || str === 127)
-            return "&lt;0x" + str.toString(16).padStart(2, "0").toUpperCase() + "&gt;";
-        return safe(String.fromCharCode(str));
+        var tmp = "";
+        if (str === 29) {
+            tmp = "<span class='gs'><sup>G</sup><sub>S</sub></span>";
+        } else if (str === 30) {
+            tmp = "<span class='rs'><sup>R</sup><sub>S</sub></span>";
+        } else if (str === 4) {
+            tmp = "<span class='eot'><sup>E</sup>O<sub>T</sub></span>";
+        } else if (str === 35) {
+            tmp = "#<br>";
+        } else if (str === 34) {
+            tmp = '"';
+        } else if (str === 39) {
+            tmp = "'";
+        } else if (str === 96) {
+            tmp = "";
+        } else {
+            if ((str >= 0 && str <= 32) || str === 127) {
+                tmp = "&lt;0x" + lpad(str.toString(16).toUpperCase(), 2) + "&gt;";
+            } else {
+                tmp = String.fromCharCode(str);
+            }
+        }
+        return tmp;
     }
 
-    function analyzeAllBlocks() {
-        let results = [];
-        _barcodeDataList.forEach((block, idx) => {
-            results.push(analyzeBlock(block));
-        });
-        return results;
-    }
+    // 바코드 내용 검증 - 모든 블록 검증
+    function getDataCheckResult() {
+        var result = true;
+        _barcodeResultData = []; // 2차원 배열로 초기화
 
-    function analyzeBlock(rowData) {
-        let result = [];
-        let sections = splitByGS(rowData);
-        const add = (t, ok, d) => result.push([t, ok?"<span class='eot'>OK</span>":"<span class='gs'>NG</span>", d]);
+        _barcodeDataList.forEach(function (rowData, rowIndex) {
+            // 각 블록별 결과 배열 초기화
+            _barcodeResultData[rowIndex] = [];
+            
+            var ex_00 = false;
+            var ex_10 = false, ex_11 = false, ex_12 = false, ex_13 = false;
+            var ex_20 = false, ex_21 = false, ex_22 = false, ex_23 = false;
+            var ex_30 = false, ex_31 = false;
+            var ex_40 = false;
+            var ex_50 = false;
 
-        // Header
-        if (rowData[0] === 91 && rowData[1] === 41) add("00", true, getPart(rowData,0,7));
-        // Trailer
-        if (rowData[rowData.length-1]===35 || rowData[rowData.length-1]===4) add("50", true, "끝");
+            // Header 검사
+            if (rowData.length >= 7) {
+                if (
+                    rowData[0] === 91 && // [
+                    rowData[1] === 41 && // )
+                    rowData[2] === 62 && // >
+                    rowData[3] === 30 && // RS
+                    rowData[4] === 48 && // 0
+                    rowData[5] === 54 && // 6
+                    rowData[6] === 29   // GS
+                ) {
+                    ex_00 = true;
+                    setAddDetail("00", true, rowData.slice(0, 7), rowIndex);
+                }
+            }
 
-        sections.forEach(part=>{
-            const c=part[0];
-            if(c===86)add("10",true,toStr(part.slice(1)));
-            else if(c===80)add("11",true,toStr(part.slice(1)));
-            else if(c===83)add("12",true,toStr(part.slice(1)));
-            else if(c===69)add("13",true,toStr(part.slice(1)));
-            else if(c===84)add("20",true,toStr(part.slice(1)));
-            else if(c===67)add("40",true,toStr(part.slice(1)));
+            // Trailer 검사
+            if (rowData[rowData.length - 1] === 35 || rowData[rowData.length - 1] === 4) {
+                ex_50 = true;
+                if (
+                    rowData[rowData.length - 4] === 29 &&
+                    rowData[rowData.length - 3] === 30 &&
+                    rowData[rowData.length - 2] === 4 &&
+                    rowData[rowData.length - 1] === 35
+                ) {
+                    setAddDetail("50", true, rowData.slice(rowData.length - 4), rowIndex);
+                } else {
+                    setAddDetail("50", true, rowData.slice(rowData.length - 3), rowIndex);
+                }
+            }
+
+            // 구분자 기준 split 후 검증
+            getCheckArrayData(rowData).forEach(function (partData) {
+                var code = partData[0];
+                if (code === 86) { // V - 업체코드
+                    ex_10 = true;
+                    setAddDetail("10", partData.length === 5, partData.slice(1), rowIndex);
+                } else if (code === 80) { // P - 부품번호
+                    ex_11 = true;
+                    var isOK = partData.length > 10 && partData.length < 17 && !chkHaveCode(partData, 45);
+                    setAddDetail("11", isOK, partData.slice(1), rowIndex);
+                } else if (code === 83) { // S - 서열코드
+                    ex_12 = true;
+                    setAddDetail("12", partData.length > 0 && partData.length < 10, partData.slice(1), rowIndex);
+                } else if (code === 69) { // E - EO번호
+                    ex_13 = true;
+                    setAddDetail("13", partData.length > 8 && partData.length < 11, partData.slice(1), rowIndex);
+                } else if (code === 84) { // T - 추적코드
+                    if (partData.length > 6) {
+                        ex_20 = true;
+                        var okDate = chkValidDate(partData.slice(1, 7));
+                        setAddDetail("20", okDate, partData.slice(1, 7), rowIndex);
+                    }
+                } else if (code === 67) { // C - 업체영역
+                    ex_40 = true;
+                    setAddDetail("40", partData.length > 0 && partData.length < 52, partData.slice(1), rowIndex);
+                }
+            });
+
+            // 필수 항목 체크
+            if (!ex_00) setAddDetail("00", false, null, rowIndex);
+            if (!ex_10) setAddDetail("10", false, null, rowIndex);
+            if (!ex_11) setAddDetail("11", false, null, rowIndex);
+            if (!ex_20) setAddDetail("20", false, null, rowIndex);
+            if (!ex_50) setAddDetail("50", false, null, rowIndex);
         });
 
         return result;
     }
 
-    function splitByGS(arr) {
-        let res=[],tmp=[];
-        arr.forEach(v=>{
-            if(v===29){res.push(tmp);tmp=[];}
-            else tmp.push(v);
+    // 결과 데이터 추가 - 모든 블록에 대해 저장
+    function setAddDetail(type, okng, dispData, rowIndex) {
+        var strOKNG = okng ? "<span class='eot'>OK</span>" : "<span class='gs'>NG</span>";
+        
+        // 해당 블록의 결과 배열에 추가
+        if (!_barcodeResultData[rowIndex]) {
+            _barcodeResultData[rowIndex] = [];
+        }
+        
+        _barcodeResultData[rowIndex].push([
+            type,
+            strOKNG,
+            dispData != null ? getCodeFromArrayData(dispData) : null
+        ]);
+    }
+
+    // 구분자(ASCII 29) 기준으로 분할
+    function getCheckArrayData(arrData) {
+        var rtnData = [];
+        var rowData = [];
+        arrData.forEach(function (v) {
+            if (v === 29) {
+                if (rowData.length > 0) {
+                    rtnData.push(rowData.slice(0));
+                }
+                rowData = [];
+            } else if (v !== 32) {
+                rowData.push(v);
+            }
         });
-        if(tmp.length>0)res.push(tmp);
-        return res;
+        if (rowData.length > 0) {
+            rtnData.push(rowData.slice(0));
+        }
+        return rtnData;
     }
 
-    function toStr(arr){
-        return arr.map(v=>String.fromCharCode(v)).join("");
+    // 배열에 특정 코드 포함 여부 확인
+    function chkHaveCode(arrData, chkCode) {
+        return arrData.some(function (v) {
+            return v === chkCode;
+        });
     }
 
-    function getPart(arr,s,e){
-        return arr.slice(s,e).map(v=>String.fromCharCode(v)).join("");
+    // 날짜 형식 검증 (YYMMDD)
+    function chkValidDate(arrData) {
+        var strDate = "";
+        arrData.forEach(function (v) {
+            strDate += String.fromCharCode(v);
+        });
+        var df = /^[0-9]{6}$/;
+        if (!df.test(strDate)) return false;
+        var year = Number("20" + strDate.substr(0, 2));
+        var month = Number(strDate.substr(2, 2));
+        var day = Number(strDate.substr(4, 2));
+        if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+        return true;
+    }
+
+    // 왼쪽 0 채우기
+    function lpad(n, width) {
+        n = n + "";
+        return n.length >= width ? n : new Array(width - n.length + 1).join("0") + n;
     }
 }
