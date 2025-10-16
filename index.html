@@ -39,9 +39,26 @@
             border-radius: 8px;
             z-index: 201;
         }
+        /* 스캔 품질 표시기 */
+        #qualityIndicator {
+            display: none;
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            z-index: 1000;
+            font-size: 12px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
+    <!-- 스캔 품질 표시기 -->
+    <div id="qualityIndicator"></div>
+
     <!-- 바코드 내용 섹션 -->
     <div class="title">바코드내용</div>
     <div id="txtResult" class="memo"></div>
@@ -86,7 +103,7 @@
     <!-- 카메라 미리보기 -->
     <div id="cameraContainer">
         <video id="cameraPreview" autoplay muted playsinline></video>
-        <button id="closeCamBtn" onclick="stopScan()">✕ 닫기</button>
+        <button id="closeCamBtn">✕ 닫기</button>
     </div>
 
     <!-- Script -->
@@ -103,19 +120,7 @@
                 .catch(err => console.warn('SW registration failed:', err));
         }
 
-        // 탭 전환 기능
-        $(document).on('click', '.tab-button', function() {
-            const tabIndex = parseInt($(this).data('tab'));
-            $('.tab-button').removeClass('active');
-            $(this).addClass('active');
-            
-            if (window.dataAnalyzer) {
-                dataAnalyzer.setSelectIndex(tabIndex);
-                setBarcodeResultDetail();
-                updateBarcodeDisplay();
-            }
-        });
-
+        // 전역 함수 정의
         function updateBarcodeDisplay() {
             if (window.dataAnalyzer) {
                 $("#txtResult").html(dataAnalyzer.getFullViewData());
@@ -125,8 +130,38 @@
         // DOM 로드 완료 시 초기화
         $(document).ready(function() {
             console.log("DOM 로드 완료");
-            // 빈 행 숨기기
-            hideEmptyRows();
+            
+            // DataAnalyzer 초기화 상태 확인
+            setTimeout(function() {
+                if (typeof DataAnalyzer !== 'undefined') {
+                    console.log("✅ DataAnalyzer 로드됨");
+                    if (!window.dataAnalyzer) {
+                        console.log("⚠️ dataAnalyzer 인스턴스 생성 시도");
+                        window.dataAnalyzer = new DataAnalyzer();
+                    }
+                } else {
+                    console.error("❌ DataAnalyzer 로드 실패");
+                }
+            }, 100);
+            
+            // 탭 전환 기능
+            $(document).on('click', '.tab-button', function() {
+                const tabIndex = parseInt($(this).data('tab'));
+                console.log("탭 전환:", tabIndex);
+                
+                $('.tab-button').removeClass('active');
+                $(this).addClass('active');
+                
+                if (window.dataAnalyzer) {
+                    dataAnalyzer.setSelectIndex(tabIndex);
+                    if (typeof setBarcodeResultDetail === 'function') {
+                        setBarcodeResultDetail();
+                    }
+                    updateBarcodeDisplay();
+                } else {
+                    console.error("dataAnalyzer가 초기화되지 않음");
+                }
+            });
         });
     </script>
 </body>
