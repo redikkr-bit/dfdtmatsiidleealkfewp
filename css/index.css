@@ -538,3 +538,88 @@ tr[style*="display: none"] {
     white-space: pre-wrap;
     word-break: break-all;
 }
+/* 기존 CSS는 모두 유지하고 다음 스타일만 추가 */
+
+/* 특수 문자 표시 스타일 보완 */
+.gs {
+    color: #dc3545;
+    font-weight: bold;
+    background: #f8d7da;
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin: 0 1px;
+    font-size: 0.9em;
+}
+
+.rs {
+    color: #198754;
+    font-weight: bold;
+    background: #d1e7dd;
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin: 0 1px;
+    font-size: 0.9em;
+}
+
+.eot {
+    color: #0d6efd;
+    font-weight: bold;
+    background: #cfe2ff;
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin: 0 1px;
+    font-size: 0.9em;
+}
+
+.sharp {
+    color: #6f42c1;
+    font-weight: bold;
+    background: #e9ecef;
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin: 0 1px;
+    font-size: 0.9em;
+}
+
+/* 결과 테이블 스타일 보완 */
+#resultTable table {
+    font-size: 12px;
+}
+
+#resultTable td {
+    padding: 8px 6px;
+    vertical-align: middle;
+}
+
+/* OK/NG 표시 스타일 */
+.eot { /* OK 스타일 */
+    color: #198754;
+    font-weight: bold;
+}
+
+.gs { /* NG 스타일 */ 
+    color: #dc3545;
+    font-weight: bold;
+}
+
+/* 바코드 내용 표시 */
+.memo {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    line-height: 1.3;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    padding: 10px;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* 품질 표시기 애니메이션 */
+#qualityIndicator {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
