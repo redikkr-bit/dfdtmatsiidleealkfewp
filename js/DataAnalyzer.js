@@ -1,336 +1,283 @@
-/******************************************
- * 데이터 분석 및 검증 모듈 - 강화된 블록 분리
- ******************************************/
 function DataAnalyzer() {
+    var _barcodeData = [];
     var _barcodeDataList = [];
     var _barcodeResultData = [];
+    var _barcodeDataStr = "";
     var _barcodeCount = 0;
     var _selectedIndex = 0;
 
-    // 바코드 데이터 설정
-    this.setBarcodeData = function (strData) {
-        console.log("=== 바코드 데이터 분석 시작 ===");
-        console.log("원본 바코드 데이터:", strData);
-        console.log("데이터 길이:", strData.length);
-        
+    this.setBarcodeData = function(strData) {
+        console.log("=== 바코드 데이터 설정 ===");
+        _barcodeData = [];
         _barcodeDataList = [];
         _barcodeResultData = [];
-        _barcodeCount = 0;
         _selectedIndex = 0;
+        _barcodeCount = 0;
+        _barcodeDataStr = strData;
+        
+        console.log("원본 데이터:", strData);
+        console.log("데이터 길이:", strData.length);
+        
+        setArrayFromString(strData);
+        setSharpDivide();
+    }
 
-        // 데이터 정제
-        var cleanedData = cleanBarcodeData(strData);
-        console.log("정제된 데이터:", cleanedData);
+    this.setSelectIndex = function(index) {
+        _selectedIndex = index;
+    }
+
+    this.getFullViewData = function() {
+        return getCodeFromArray();
+    }
+
+    this.getCount = function() {
+        return _barcodeCount;
+    }
+
+    this.getCheckResult = function() {
+        return getDataCheckResult();
+    }
+
+    this.getResultData = function() {
+        return _barcodeResultData;
+    }
+
+    this.getSelectedIndex = function() {
+        return _selectedIndex;
+    }
+
+    function setSharpDivide(){
+        var rowData = [];
+        console.log("블록 분리 시작, 데이터 길이:", _barcodeData.length);
         
-        // 블록 분리 시도 (여러 방법)
-        var blocks = extractBlocks(cleanedData);
-        
-        console.log("분리된 블록 개수:", blocks.length);
-        
-        if (blocks.length === 0) {
-            console.warn("블록을 분리할 수 없음, 단일 블록으로 처리");
-            blocks = [cleanedData];
-        }
-        
-        blocks.forEach((block, index) => {
-            if (block.trim().length > 10) { // 의미 있는 최소 길이
-                _barcodeDataList.push(block);
-                _barcodeCount++;
-                console.log(`블록 ${index} (${block.length}자):`, block.substring(0, 50) + "...");
+        _barcodeData.forEach(function(v,i){
+            rowData.push(v);
+            if (v == 35) {  // # (DEC)
+                _barcodeDataList.push(rowData);
+                console.log("블록 발견:", rowData.length + " bytes");
+                rowData = [];
+                _barcodeCount += 1;
             }
         });
         
-        // 블록이 1개밖에 없지만 데이터가 길면 수동 분리 시도
-        if (_barcodeCount === 1 && cleanedData.length > 100) {
-            console.log("데이터가 길어 강제 분리 시도");
-            var forcedBlocks = forceBlockSeparation(cleanedData);
-            if (forcedBlocks.length > 1) {
-                console.log("강제 블록 분리 성공:", forcedBlocks.length);
-                _barcodeDataList = forcedBlocks;
-                _barcodeCount = forcedBlocks.length;
-            }
-        }
-
-        console.log("최종 블록 개수:", _barcodeCount);
-        
-        // 각 블록 분석
-        if (_barcodeCount > 0) {
-            analyzeAllBlocks();
+        if (rowData.length > 0) {
+            _barcodeDataList.push(rowData);
+            _barcodeCount += 1;
+            console.log("마지막 블록:", rowData.length + " bytes");
         }
         
-        console.log("=== 바코드 데이터 분석 완료 ===");
-    };
-
-    // 선택된 index 번호 설정
-    this.setSelectIndex = function (index) {
-        if (index >= 0 && index < _barcodeCount) {
-            _selectedIndex = index;
-            console.log("선택된 블록 인덱스:", _selectedIndex);
-        }
-    };
-
-    // View용 전체 문자열 리턴 - 선택된 블록만 표시
-    this.getFullViewData = function () {
-        if (_barcodeDataList[_selectedIndex]) {
-            return formatForDisplay(_barcodeDataList[_selectedIndex]);
-        }
-        return "";
-    };
-
-    // #으로 구분된 바코드 세트 개수 리턴
-    this.getCount = function () {
-        return _barcodeCount;
-    };
-
-    // 선택된 블록의 검증 결과 리턴
-    this.getSelectedResultData = function () {
-        if (_barcodeResultData[_selectedIndex]) {
-            return _barcodeResultData[_selectedIndex];
-        }
-        return [];
-    };
-
-    // 선택된 index 번호 리턴
-    this.getSelectedIndex = function () {
-        return _selectedIndex;
-    };
-
-    // 바코드 내용 검증
-    this.getCheckResult = function () {
-        return true; // 분석은 이미 완료됨
-    };
-
-    // 데이터 정제 함수
-    function cleanBarcodeData(data) {
-        return data
-            .replace(/\r\n/g, '') // 줄바꿈 제거
-            .replace(/\n/g, '')   // 줄바꿈 제거
-            .replace(/\s+/g, '') // 공백 제거
-            .trim();
+        console.log("총 블록 개수:", _barcodeCount);
     }
 
-    // 블록 추출 함수 (다양한 방법 시도)
-    function extractBlocks(data) {
-        var blocks = [];
-        
-        // 방법 1: #으로 분리 (기본)
-        var hashBlocks = data.split('#').filter(block => block.trim().length > 0);
-        if (hashBlocks.length > 1) {
-            console.log("#으로 블록 분리 성공:", hashBlocks.length);
-            // 각 블록에 # 다시 추가 (마지막 블록 제외)
-            blocks = hashBlocks.map((block, index) => 
-                index < hashBlocks.length - 1 ? block + '#' : block
-            );
-            return blocks;
-        }
-        
-        // 방법 2: RS+EOT 패턴으로 분리
-        var rsEotPattern = /\x1E\x04/g;
-        if (rsEotPattern.test(data)) {
-            var rsEotBlocks = data.split(rsEotPattern).filter(block => block.trim().length > 0);
-            if (rsEotBlocks.length > 1) {
-                console.log("RS+EOT 패턴으로 블록 분리 성공:", rsEotBlocks.length);
-                blocks = rsEotBlocks.map((block, index) => 
-                    index < rsEotBlocks.length - 1 ? block + '\x1E\x04' : block
-                );
-                return blocks;
-            }
-        }
-        
-        // 방법 3: Header 패턴으로 분리
-        var headerPattern = /\[\)>\x1E06\x1D/g;
-        var headerMatches = data.match(headerPattern);
-        if (headerMatches && headerMatches.length > 1) {
-            console.log("Header 패턴으로 블록 분리 시도:", headerMatches.length);
-            var headerBlocks = data.split(headerPattern);
-            if (headerBlocks.length > 1) {
-                // 첫 번째 요소는 빈 문자열일 수 있음
-                blocks = [];
-                for (var i = 1; i < headerBlocks.length; i++) {
-                    var block = '[)>06' + headerBlocks[i];
-                    if (block.length > 20) {
-                        blocks.push(block);
-                    }
-                }
-                if (blocks.length > 1) {
-                    console.log("Header 패턴으로 블록 분리 성공:", blocks.length);
-                    return blocks;
-                }
-            }
-        }
-        
-        return blocks;
+    function getCodeFromArray(){
+        var rtnData = "";
+        _barcodeDataList.forEach(function(valRow,indexRow){
+            if (indexRow == _selectedIndex)
+                rtnData += "<span class='selected'>";
+
+            valRow.forEach(function(v,i){
+                rtnData += getCodeToChar(v);
+            });
+
+            if (indexRow == _selectedIndex)
+                rtnData += "</span>";
+        });
+        return rtnData;
     }
 
-    // 강제 블록 분리 함수
-    function forceBlockSeparation(data) {
-        var blocks = [];
-        var headerPattern = '[)>06';
-        
-        var positions = [];
-        var pos = data.indexOf(headerPattern);
-        
-        // 모든 Header 위치 찾기
-        while (pos !== -1) {
-            positions.push(pos);
-            pos = data.indexOf(headerPattern, pos + 1);
+    function getCodeFromArrayData(arrData){
+        var rtnData = "";
+        if (typeof arrData === "number") {
+            rtnData = getCodeToChar(arrData);
+        } else {
+            arrData.forEach(function(v,i){
+                rtnData += getCodeToChar(v);
+            });
         }
-        
-        console.log("찾은 Header 위치:", positions);
-        
-        if (positions.length > 1) {
-            for (var i = 0; i < positions.length; i++) {
-                var start = positions[i];
-                var end = (i < positions.length - 1) ? positions[i + 1] : data.length;
-                var block = data.substring(start, end);
-                if (block.length > 50) {
-                    blocks.push(block);
-                }
-            }
-        }
-        
-        return blocks;
+        return rtnData;
     }
 
-    // 모든 블록 분석
-    function analyzeAllBlocks() {
+    function setArrayFromString(str){
+        _barcodeData = [];
+        for (var i=0;i<str.length;i++){
+            _barcodeData.push(str.charCodeAt(i));
+        }
+    }
+
+    function getCodeToChar(str){
+        var tmp;
+        if (str == 29){
+            tmp = "<span class='gs'>[GS]</span>";
+        } else if (str == 30) {
+            tmp = "<span class='rs'>[RS]</span>";
+        } else if (str == 4){
+            tmp = "<span class='eot'>[EOT]</span>";
+        } else if (str == 35) {
+            tmp = "#";
+        } else if (str == 34) {
+            tmp = "&#34;";
+        } else if (str == 39) {
+            tmp = "&#39;";
+        } else if (str == 96) {
+            tmp = "&#96;";
+        } else {
+            if (str >= 0 && str <=32 || str == 127)
+                tmp = "&lt;0x" + lpad(str.toString(16).toUpperCase(),2) + "&gt;";
+            else
+                tmp = String.fromCharCode(str);
+        }
+        return tmp;
+    }
+
+    function getDataCheckResult() {
+        var result = true;
         _barcodeResultData = [];
         
-        _barcodeDataList.forEach((blockData, blockIndex) => {
-            console.log(`\n--- 블록 ${blockIndex} 분석 시작 ---`);
-            console.log("블록 데이터:", blockData);
+        _barcodeDataList.forEach(function(rowData,rowIndex){
+            console.log(`블록 ${rowIndex} 검증 시작:`, rowData.length + " bytes");
             
-            var blockResult = [];
-            
-            // 블록 데이터를 GS()로 분리
-            var parts = splitByGS(blockData);
-            console.log(`분할된 파트 개수: ${parts.length}`, parts);
-            
-            // Header 분석 [)>06
-            var headerValid = false;
-            if (parts.length > 0 && parts[0].includes('[)>06')) {
-                headerValid = true;
-                blockResult.push(["00", "OK", "[)>06"]);
-                console.log("Header: OK");
-            } else {
-                blockResult.push(["00", "NG", ""]);
-                console.log("Header: NG");
-            }
-            
-            // 각 파트 분석 (첫 번째 파트는 Header이므로 1부터 시작)
-            for (let i = 1; i < parts.length; i++) {
-                var part = parts[i];
-                if (part.length === 0) continue;
-                
-                var code = part.charAt(0);
-                var data = part.substring(1);
-                
-                console.log(`파트 ${i} 분석: 코드=${code}, 데이터=${data}`);
-                
-                switch(code) {
-                    case 'V': // 업체코드
-                        var valid = data.length === 4; // V 다음 4자리 (KM54, SC89 등)
-                        blockResult.push(["10", valid ? "OK" : "NG", data]);
-                        console.log(`업체코드: ${valid ? "OK" : "NG"} (${data})`);
-                        break;
-                        
-                    case 'P': // 부품번호
-                        var valid = data.length >= 10 && data.length <= 15;
-                        blockResult.push(["11", valid ? "OK" : "NG", data]);
-                        console.log(`부품번호: ${valid ? "OK" : "NG"} (${data})`);
-                        break;
-                        
-                    case 'S': // 서열코드
-                        var valid = data.length > 0 && data.length < 10;
-                        blockResult.push(["12", valid ? "OK" : "NG", data]);
-                        console.log(`서열코드: ${valid ? "OK" : "NG"} (${data})`);
-                        break;
-                        
-                    case 'E': // EO번호
-                        var valid = data.length >= 8 && data.length <= 10;
-                        blockResult.push(["13", valid ? "OK" : "NG", data]);
-                        console.log(`EO번호: ${valid ? "OK" : "NG"} (${data})`);
-                        break;
-                        
-                    case 'T': // 추적코드
-                        if (data.length >= 6) {
-                            var date = data.substring(0, 6);
-                            var dateValid = /^\d{6}$/.test(date);
-                            blockResult.push(["20", dateValid ? "OK" : "NG", date]);
-                            console.log(`생산일자: ${dateValid ? "OK" : "NG"} (${date})`);
-                            
-                            // 부품4M (1문자)
-                            if (data.length > 6) {
-                                var part4M = data.charAt(6);
-                                blockResult.push(["21", "OK", part4M]);
-                                console.log(`부품4M: OK (${part4M})`);
-                                
-                                // A or @ (1문자)
-                                if (data.length > 7) {
-                                    var aOrAt = data.charAt(7);
-                                    blockResult.push(["22", "OK", aOrAt]);
-                                    console.log(`A or @: OK (${aOrAt})`);
-                                    
-                                    // 추적번호 (나머지)
-                                    if (data.length > 8) {
-                                        var trackNo = data.substring(8);
-                                        blockResult.push(["23", "OK", trackNo]);
-                                        console.log(`추적번호: OK (${trackNo})`);
-                                    }
-                                }
-                            }
-                        } else {
-                            blockResult.push(["20", "NG", ""]);
-                            console.log("추적코드: NG (길이 부족)");
-                        }
-                        break;
-                        
-                    case 'M': // 특이정보
-                        blockResult.push(["30", "OK", data]);
-                        console.log(`특이정보: OK (${data})`);
-                        break;
-                        
-                    case 'N': // 초도품구분
-                        blockResult.push(["31", "OK", data]);
-                        console.log(`초도품구분: OK (${data})`);
-                        break;
-                        
-                    case 'C': // 업체영역
-                        var valid = data.length > 0 && data.length < 52;
-                        blockResult.push(["40", valid ? "OK" : "NG", data]);
-                        console.log(`업체영역: ${valid ? "OK" : "NG"} (${data})`);
-                        break;
+            var ex_00 = false;
+            var ex_10 = false, ex_11 = false, ex_12 = false, ex_13 = false;
+            var ex_20 = false, ex_21 = false, ex_22 = false, ex_23 = false;
+            var ex_30 = false, ex_31 = false;
+            var ex_40 = false;
+            var ex_50 = false;
+
+            // Header 검사
+            if (rowData.length >= 7) {
+                if (rowData[0] == 91 && rowData[1] == 41 && rowData[2] == 62 && 
+                    rowData[3] == 30 && rowData[4] == 48 && rowData[5] == 54 && rowData[6] == 29) {
+                    ex_00 = true;
+                    setAddDetail("00", true, rowData.slice(0,7), rowIndex);
                 }
             }
-            
-            // Trailer 분석
-            var trailerValid = false;
-            if (blockData.includes('#') || blockData.endsWith('#')) {
-                trailerValid = true;
-                blockResult.push(["50", "OK", "#"]);
-                console.log("Trailer: OK");
+
+            // Trailer 검사
+            if (rowData[rowData.length-1] == 35 || rowData[rowData.length-1] == 4) {
+                ex_50 = true;
+                if (rowData[rowData.length-4] == 29 && rowData[rowData.length-3] == 30 && 
+                    rowData[rowData.length-2] == 4 && rowData[rowData.length-1] == 35) {
+                    setAddDetail("50", true, rowData.slice(rowData.length-4), rowIndex);
+                } else {
+                    setAddDetail("50", true, [rowData[rowData.length-1]], rowIndex);
+                }
             }
-            if (!trailerValid) {
-                blockResult.push(["50", "NG", ""]);
-                console.log("Trailer: NG");
+
+            // 구분자 기준 분할 및 검증
+            getCheckArrayData(rowData).forEach(function(partData, partIndex){
+                if (partData[0] == 86) { // V - 업체코드
+                    ex_10 = true;
+                    setAddDetail("10", partData.length == 5, partData.slice(1), rowIndex);
+                } else if (partData[0] == 80) { // P - 부품번호
+                    ex_11 = true;
+                    var isValid = partData.length > 10 && partData.length < 17 && !chkHaveCode(partData, 45);
+                    setAddDetail("11", isValid, partData.slice(1), rowIndex);
+                } else if (partData[0] == 83) { // S - 서열코드
+                    ex_12 = true;
+                    setAddDetail("12", partData.length > 0 && partData.length < 10, partData.slice(1), rowIndex);
+                } else if (partData[0] == 69) { // E - EO번호
+                    ex_13 = true;
+                    setAddDetail("13", partData.length > 8 && partData.length < 11, partData.slice(1), rowIndex);
+                } else if (partData[0] == 84) { // T - 추적코드
+                    if (partData.length > 6) {
+                        ex_20 = true;
+                        var dateValid = chkValidDate(partData.slice(1, 7));
+                        setAddDetail("20", dateValid, partData.slice(1, 7), rowIndex);
+                        
+                        // 부품4M
+                        if (partData.length > 7) {
+                            ex_21 = true;
+                            setAddDetail("21", true, [partData[7]], rowIndex);
+                        }
+                        // A or @
+                        if (partData.length > 8) {
+                            ex_22 = true;
+                            setAddDetail("22", true, [partData[8]], rowIndex);
+                        }
+                        // 추적번호
+                        if (partData.length > 9) {
+                            ex_23 = true;
+                            setAddDetail("23", true, partData.slice(9), rowIndex);
+                        }
+                    }
+                } else if (partData[0] == 77) { // M - 특이정보
+                    ex_30 = true;
+                    setAddDetail("30", true, partData.slice(1), rowIndex);
+                } else if (partData[0] == 78) { // N - 초도품구분
+                    ex_31 = true;
+                    setAddDetail("31", true, partData.slice(1), rowIndex);
+                } else if (partData[0] == 67) { // C - 업체영역
+                    ex_40 = true;
+                    setAddDetail("40", partData.length > 0 && partData.length < 52, partData.slice(1), rowIndex);
+                }
+            });
+
+            // 필수 항목 체크
+            if (!ex_00) setAddDetail("00", false, null, rowIndex);
+            if (!ex_10) setAddDetail("10", false, null, rowIndex);
+            if (!ex_11) setAddDetail("11", false, null, rowIndex);
+            if (!ex_20) setAddDetail("20", false, null, rowIndex);
+            if (!ex_50) setAddDetail("50", false, null, rowIndex);
+        });
+        
+        return result;
+    }
+
+    function setAddDetail(type, okng, dispData, rowIndex) {
+        if (_selectedIndex == rowIndex) {
+            var strOKNG = okng ? "<span class='eot'>OK</span>" : "<span class='gs'>NG</span>";
+            _barcodeResultData.push([type, strOKNG, dispData != null ? getCodeFromArrayData(dispData) : null]);
+        }
+    }
+
+    function getCheckArrayData(arrData) {
+        var rtnData = [];
+        var rowData = [];
+        arrData.forEach(function(v,i){
+            if (v == 29) {
+                if (rowData.length > 0) {
+                    rtnData.push(rowData.slice(0));
+                }
+                rowData = [];
+            } else {
+                if (v != 32)
+                    rowData.push(v);
             }
-            
-            _barcodeResultData[blockIndex] = blockResult;
-            console.log(`--- 블록 ${blockIndex} 분석 완료 (${blockResult.length}개 항목) ---`);
+        });
+        if (rowData.length > 0) {
+            rtnData.push(rowData.slice(0));
+        }
+        return rtnData;
+    }
+
+    function chkHaveCode(arrData, chkCode) {
+        return arrData.some(function(v,i) {
+            return v == chkCode;
         });
     }
 
-    // GS 문자()로 분리
-    function splitByGS(data) {
-        return data.split('\x1D').filter(part => part.length > 0);
+    function chkValidDate(arrData) {
+        if (!arrData || arrData.length != 6) return false;
+        
+        var strDate = "";
+        arrData.forEach(function(v){
+            strDate += String.fromCharCode(v);
+        });
+        
+        var df = /^[0-9]{6}$/;
+        if (!df.test(strDate)) return false;
+        
+        var year = Number("20" + strDate.substr(0,2));
+        var month = Number(strDate.substr(2,2));
+        var day = Number(strDate.substr(4,2));
+        
+        if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+        
+        return true;
     }
 
-    // 표시용 포맷팅
-    function formatForDisplay(data) {
-        return data
-            .replace(/\x1D/g, '<span class="gs">[GS]</span>')
-            .replace(/\x1E/g, '<span class="rs">[RS]</span>')
-            .replace(/\x04/g, '<span class="eot">[EOT]</span>')
-            .replace(/#/g, '<span class="sharp">[#]</span>');
+    function lpad(n, width) {
+      n = n + '';
+      return n.length >= width ? n : new Array(width - n.length + 1).join('0') + n;
     }
 }
