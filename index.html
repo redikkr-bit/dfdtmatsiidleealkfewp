@@ -11,25 +11,74 @@
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="img/icon-192.png">
     <style>
-        #cameraContainer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; justify-content: center; align-items: center; z-index: 200; }
-        #cameraPreview { width: 100%; height: 100%; object-fit: cover; }
-        #closeCamBtn { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.8); border: none; font-size: 18px; padding: 6px 10px; border-radius: 8px; z-index: 201; }
-        #qualityIndicator { display: none; position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 8px 12px; border-radius: 5px; z-index: 1000; font-size: 12px; font-weight: bold; }
+        #cameraContainer {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: black;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+        #cameraPreview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        #closeCamBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            border: none;
+            font-size: 18px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            z-index: 201;
+        }
+        /* 스캔 품질 표시기 */
+        #qualityIndicator {
+            display: none;
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            z-index: 1000;
+            font-size: 12px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
+    <!-- 스캔 품질 표시기 -->
     <div id="qualityIndicator"></div>
+
+    <!-- 바코드 내용 섹션 -->
     <div class="title">바코드내용</div>
     <div id="txtResult" class="memo"></div>
+
+    <!-- 블록 선택 탭 -->
     <div id="blockTabs" class="tab-container">
         <button class="tab-button active" data-tab="0">Assy</button>
         <button class="tab-button" data-tab="1">Sub01</button>
         <button class="tab-button" data-tab="2">Sub02</button>
     </div>
+
+    <!-- H/KMC부품 2D 바코드 표준 테이블 -->
     <div id="resultTable">
         <div class="title">H/KMC부품 2D 바코드 표준</div>
         <table>
-            <tr><th>구분</th><th style="width:60px;">결과</th><th>Data</th></tr>
+            <tr>
+                <th>구분</th>
+                <th style="width:60px;">결과</th>
+                <th>Data</th>
+            </tr>
             <tr><td>Header</td><td class="ct" id="result00"></td><td id="data00"></td></tr>
             <tr><td>업체코드</td><td class="ct" id="result10"></td><td id="data10"></td></tr>
             <tr><td>부품번호</td><td class="ct" id="result11"></td><td id="data11"></td></tr>
@@ -45,29 +94,73 @@
             <tr><td>Trailer</td><td class="ct" id="result50"></td><td id="data50"></td></tr>
         </table>
     </div>
-    <div class="bottomArea"><button id="btnScan">SCAN</button></div>
+
+    <!-- 하단 버튼 영역 -->
+    <div class="bottomArea">
+        <button id="btnScan">SCAN</button>
+    </div>
+
+    <!-- 카메라 미리보기 -->
     <div id="cameraContainer">
         <video id="cameraPreview" autoplay muted playsinline></video>
         <button id="closeCamBtn">✕ 닫기</button>
     </div>
+
+    <!-- Script -->
     <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
     <script src="js/DataAnalyzer.js"></script>
     <script src="js/index.js"></script>
+
     <script>
+        // PWA Service Worker
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').then(() => console.log('✅ Service Worker Registered')).catch(err => console.warn('SW registration failed:', err));
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log('✅ Service Worker Registered'))
+                .catch(err => console.warn('SW registration failed:', err));
         }
-        function updateBarcodeDisplay() { if (window.dataAnalyzer) $("#txtResult").html(dataAnalyzer.getFullViewData()); }
+
+        // 전역 함수 정의
+        function updateBarcodeDisplay() {
+            if (window.dataAnalyzer) {
+                $("#txtResult").html(dataAnalyzer.getFullViewData());
+            }
+        }
+
+        // DOM 로드 완료 시 초기화
         $(document).ready(function() {
             console.log("DOM 로드 완료");
+            
+            // DataAnalyzer 초기화 상태 확인
             setTimeout(function() {
-                if (typeof DataAnalyzer !== 'undefined') { console.log("✅ DataAnalyzer 로드됨"); if (!window.dataAnalyzer) window.dataAnalyzer = new DataAnalyzer(); } else { console.error("❌ DataAnalyzer 로드 실패"); }
+                if (typeof DataAnalyzer !== 'undefined') {
+                    console.log("✅ DataAnalyzer 로드됨");
+                    if (!window.dataAnalyzer) {
+                        console.log("⚠️ dataAnalyzer 인스턴스 생성 시도");
+                        window.dataAnalyzer = new DataAnalyzer();
+                    }
+                } else {
+                    console.error("❌ DataAnalyzer 로드 실패");
+                }
             }, 100);
+            
+            // 탭 전환 기능
             $(document).on('click', '.tab-button', function() {
-                const tabIndex = parseInt($(this).data('tab')); console.log("탭 전환:", tabIndex);
-                $('.tab-button').removeClass('active'); $(this).addClass('active');
-                if (window.dataAnalyzer) { dataAnalyzer.setSelectIndex(tabIndex); if (typeof setBarcodeResultDetail === 'function') setBarcodeResultDetail(); updateBarcodeDisplay(); } else { console.error("dataAnalyzer가 초기화되지 않음"); }
+                const tabIndex = parseInt($(this).data('tab'));
+                console.log("탭 전환:", tabIndex);
+                
+                $('.tab-button').removeClass('active');
+                $(this).addClass('active');
+                
+                if (window.dataAnalyzer) {
+                    dataAnalyzer.setSelectIndex(tabIndex);
+                    if (typeof setBarcodeResultDetail === 'function') {
+                        setBarcodeResultDetail();
+                    }
+                    updateBarcodeDisplay();
+                } else {
+                    console.error("dataAnalyzer가 초기화되지 않음");
+                }
             });
         });
     </script>
