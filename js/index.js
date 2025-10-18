@@ -1,24 +1,26 @@
 /**************************************************
- * index.js - DataMatrix 스캔 감도 완화 + 다중 블록 지원 (완성본)
+ * index.js - 다중 블록 DataMatrix 스캔 (최종 완성)
  **************************************************/
 let codeReader;
 let scanning = false;
 let combinedBarcodeData = "";
+let detectedBlocks = new Set();
 let scanTimeout = null;
 let lowQualityCount = 0;
 
-const QUALITY_LIMIT = 3; // 3회 이상 low-quality 감지 시 안내 표시
-const SCAN_SESSION_TIME = 4000; // 4초 동안 복수 블록 누적 수집
+const SCAN_SESSION_TIME = 5000; // 5초간 스캔 세션 유지
+const QUALITY_LIMIT = 4;        // 4회 낮은 품질 시에만 경고
 
 $(document).ready(function() {
     console.log("📷 ZXing 초기화 시작");
 
-    const hints = new Map();
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.DATA_MATRIX]);
+    codeReader = new ZXing.BrowserMultiFormatReader();
 
-    codeReader = new ZXing.BrowserMultiFormatReader(hints);
+    $("#btnScan").on("click", function() {
+        if (scanning) stopScan();
+        else startScan();
+    });
 
-    $("#btnScan").on("click", startScan);
     $("#closeCamBtn").on("click", stopScan);
 });
 
@@ -32,36 +34,34 @@ function startScan() {
     $("#cameraContainer").show();
     $("#qualityIndicator").show().text("카메라 초기화 중...");
 
-    const videoElement = document.getElementById('cameraPreview');
-
+    const videoElement = document.getElementById("cameraPreview");
     const constraints = {
         video: {
             facingMode: "environment",
             width: { ideal: 1920 },
-            height: { ideal: 1080 },
-            focusMode: "continuous"
+            height: { ideal: 1080 }
         }
     };
 
     combinedBarcodeData = "";
+    detectedBlocks.clear();
     lowQualityCount = 0;
 
-    // ZXing decode loop
     codeReader.decodeFromVideoDevice(null, videoElement, (result, err) => {
-        if (result) {
+        if (result && result.text) {
             handleDecodedData(result.text);
         } else if (err && !(err instanceof ZXing.NotFoundException)) {
-            console.warn("Decode error:", err);
+            console.warn("⚠️ 디코딩 에러:", err);
         } else {
             handleLowQuality();
         }
     }, constraints)
     .then(() => {
-        $("#qualityIndicator").text("스캔 준비 완료 ✅");
+        $("#qualityIndicator").text("스캔 중... 여러 블록 감지 대기중");
         startScanSession();
     })
     .catch(err => {
-        console.error("카메라 접근 오류:", err);
+        console.error("❌ 카메라 접근 오류:", err);
         $("#qualityIndicator").text("카메라 접근 실패");
         scanning = false;
     });
@@ -87,37 +87,11 @@ function stopScan() {
 }
 
 /**************************************************
- * 디코딩된 데이터 누적 처리
- **************************************************/
-function handleDecodedData(data) {
-    const cleanData = data.replace(/\s+/g, '').trim();
-    console.log("✅ 스캔된 데이터:", cleanData);
-
-    // 중복 방지 (같은 블록 여러 번 인식 방지)
-    if (!combinedBarcodeData.includes(cleanData)) {
-        combinedBarcodeData += cleanData;
-    }
-
-    $("#qualityIndicator").text("데이터 감지됨... 누적 중");
-}
-
-/**************************************************
- * 낮은 품질 감지
- **************************************************/
-function handleLowQuality() {
-    lowQualityCount++;
-    if (lowQualityCount % QUALITY_LIMIT === 0) {
-        $("#qualityIndicator").text("스캔 품질 낮음 — 자동 재시도 중...");
-    }
-}
-
-/**************************************************
- * 다중 블록 스캔 세션 관리
+ * 스캔 세션 유지 (여러 블록 누적)
  **************************************************/
 function startScanSession() {
     console.log("⏱️ 다중 블록 스캔 세션 시작");
 
-    // 일정 시간 동안 누적 수집 (다중 블록)
     scanTimeout = setTimeout(() => {
         console.log("⏹️ 스캔 세션 종료");
         stopScan();
@@ -125,43 +99,74 @@ function startScanSession() {
 }
 
 /**************************************************
- * 스캔 데이터 분석 및 테이블 갱신
+ * 스캔 감지된 데이터 처리
  **************************************************/
-function finalizeScanData() {
-    console.log("🧩 누적된 전체 데이터:", combinedBarcodeData);
-    $("#txtResult").html(
-        combinedBarcodeData.replace(/\x1D/g, '[GS]')
-            .replace(/\x1E/g, '[RS]')
-            .replace(/\x04/g, '[EOT]')
-            .replace(/#/g, '[#]')
-    );
+function handleDecodedData(rawData) {
+    const cleanData = rawData.replace(/\s+/g, '').trim();
 
-    if (window.dataAnalyzer) {
-        console.log("📊 DataAnalyzer 분석 시작");
-        dataAnalyzer.setBarcodeData(combinedBarcodeData);
-        setBarcodeResultDetail();
-        updateBarcodeDisplay();
-    } else {
-        console.error("❌ dataAnalyzer 인스턴스 없음");
+    // 동일 데이터 반복 인식 방지
+    if (detectedBlocks.has(cleanData)) return;
+    detectedBlocks.add(cleanData);
+
+    console.log("✅ 새 블록 감지됨:", cleanData);
+
+    // 블록 구분자 추가
+    if (!combinedBarcodeData.endsWith('#') && combinedBarcodeData.length > 0) {
+        combinedBarcodeData += '#';
+    }
+    combinedBarcodeData += cleanData;
+
+    $("#qualityIndicator").text(`블록 감지됨 (${detectedBlocks.size}개 누적)`);
+}
+
+/**************************************************
+ * 낮은 품질 감지 (감도 완화)
+ **************************************************/
+function handleLowQuality() {
+    lowQualityCount++;
+    if (lowQualityCount % QUALITY_LIMIT === 0) {
+        $("#qualityIndicator").text("품질 낮음 — 자동 재시도 중...");
     }
 }
 
 /**************************************************
- * 결과 테이블 표시 갱신
+ * 최종 데이터 처리
+ **************************************************/
+function finalizeScanData() {
+    console.log("🧩 누적된 전체 스캔 데이터:", combinedBarcodeData);
+
+    const viewData = combinedBarcodeData
+        .replace(/\x1D/g, '[GS]')
+        .replace(/\x1E/g, '[RS]')
+        .replace(/\x04/g, '[EOT]')
+        .replace(/#/g, '[#]');
+
+    $("#txtResult").html(viewData);
+
+    if (window.dataAnalyzer) {
+        console.log("📊 DataAnalyzer 분석 실행");
+        dataAnalyzer.setBarcodeData(combinedBarcodeData);
+        setBarcodeResultDetail();
+        updateBarcodeDisplay();
+    } else {
+        console.error("❌ DataAnalyzer 로드 실패");
+    }
+}
+
+/**************************************************
+ * 테이블 업데이트
  **************************************************/
 function setBarcodeResultDetail() {
     if (!window.dataAnalyzer) return;
     const result = dataAnalyzer.getSelectedResultData();
 
-    // 모든 셀 초기화
+    // 초기화
     for (let i = 0; i <= 50; i++) {
         $(`#result${i}`).html("");
         $(`#data${i}`).html("");
     }
 
-    // 결과 반영
-    result.forEach(item => {
-        const [code, status, data] = item;
+    result.forEach(([code, status, data]) => {
         $(`#result${code}`).html(status);
         $(`#data${code}`).html(data);
     });
